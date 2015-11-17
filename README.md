@@ -3,7 +3,7 @@ A GUI for Tomb (https://www.dyne.org/software/tomb/)
 
 ## Under development. Still not ready to use.
 
-`gtomb` is a wrapper for another wrapper called [Tomb](https://github.com/dyne/Tomb)
+`gtomb` is a wrapper for another wrapper called [Tomb](https://github.com/dyne/Tomb)  
 It is imagined to make usage of Tomb even easier for end-users.
 
 ## Usage
