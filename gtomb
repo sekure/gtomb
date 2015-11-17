@@ -13,7 +13,7 @@ command=`zenity --title="gtomb - A GUI wrapper for Tomb" \
     "slam" "Slam a tomb (or all) killing all programs using it" \
     "resize" "Resize a tomb to a new size (can only grow)" \
     "passwd" "Change the password of a key" \
-    "setkey" "Change the key locking a tomb" \
+    "setkey" "Forge a new key and change the key of an existing tomb" \
     "engrave" "Generates a QR code of a key to be saved on paper" \
     "bury" "Hide a key inside a JPEG image" \
     "exhume" "Extract a key from a JPEG image"`
@@ -80,7 +80,18 @@ function resize {
 }
 
 function passwd {
-    echo '1'
+    keyfile=`zenity --file-selection --title="Choose a keyfile"` 
+    case $? in
+        0)
+            tomb passwd -k $keyfile
+            zenity --info --title="Success" \
+                --text="Password successfully changed!"
+            main
+            eval $command;;
+        1)
+            main
+            eval $command;;
+    esac
 }
 
 function setkey {
@@ -92,11 +103,49 @@ function engrave {
 }
 
 function bury {
-    echo '1'
+    keyfile=`zenity --title="Choose keyfile" --file-selection`
+    case $? in
+        0)
+            jpegfile=`zenity --title="Choose JPEG file" --file-selection`
+            case $? in
+                0)
+                    tomb bury -k $keyfile $jpegfile
+                    zenity --info --title="Success" \
+                        --text="Your key is how hidden in $jpegfile"
+                    main
+                    eval $command;;
+                1)
+                    main
+                    eval $command;;
+            esac;;
+        1)
+            main
+            $command;;
+    esac
 }
 
 function exhume {
-    echo '1'
+    jpegfile=`zenity --title="Choose JPEG file" --file-selection`
+    case $? in
+        0)
+            keyfile=`zenity --title="Choose where to extract your key" \
+                --file-selection \
+                --save`
+            case $? in
+                0)
+                    tomb exhume -k $keyfile $jpegfile
+                    zenity --info --title="Success" \
+                        --text="Your keyfile is extracted to $keyfile"
+                    main
+                    eval $command;;
+                1)
+                    main
+                    eval $command;;
+            esac;;
+        1)
+            main
+            $command;;
+    esac
 }
 main
 eval "$command"
