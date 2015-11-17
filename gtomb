@@ -50,10 +50,12 @@ function create {
                     ;;
                     # Wait for upstream issue resolve --sudo-pwd
                 1)
-                   main;; 
+                   main
+                   eval $command;; 
             esac;;
         1)
-            main;;
+            main
+            eval $command;;
     esac
 }
 
