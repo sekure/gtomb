@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+function main {
+command=`zenity --title="gtomb - A GUI wrapper for Tomb" \
+    --width=640 --height=380 --list \
+    --separator=" & " \
+    --column=Function \
+    --column=Description \
+    "create" "Create a new tomb, forge its key and lock the tomb" \
+    "open" "Open an existing tomb" \
+    "list" "List all open tombs and information on them" \
+    "close" "Close a specific tomb (or all)" \
+    "slam" "Slam a tomb (or all) killing all programs using it" \
+    "resize" "Resize a tomb to a new size (can only grow)" \
+    "passwd" "Change the password of a key" \
+    "setkey" "Change the key locking a tomb" \
+    "engrave" "Generates a QR code of a key to be saved on paper" \
+    "bury" "Hide a key inside a JPEG image" \
+    "exhume" "Extract a key from a JPEG image"`
+}
+
+function create {
+    filename=`zenity --file-selection --title="Choose where to dig your tomb" \
+        --filename="secret.tomb" \
+        --save`
+    case $? in
+        0)
+            tombsize=`zenity --entry --title="Tomb Creation" \
+                --text="Tomb must be min. 10MB" \
+                --entry-text=10`
+            case $? in
+                0)
+                    tomb dig -s $tombsize $filename | \
+                        zenity --progress --title="Digging tomb" \
+                        --text="Please wait while your tomb is dug." \
+                        --auto-close \
+                        --pulsate
+                    zenity --info --title="Done digging" \
+                        --text="Your tomb is dug. Now we will forge a key"
+                    keyname=`zenity --file-selection --title="Choose where to forge your key" \
+                        --filename="secret.tomb.key" \
+                        --save`
+                    tomb forge $keyname | \
+                        zenity --progress --title="Forging key" \
+                        --text="Please wait while your key is being forged." \
+                        --auto-close \
+                        --pulsate
+                    zenity --info --title="Done forging" \
+                        --text="Your key is now forged. Time to lock the tomb."
+                    ;;
+                    # Wait for upstream issue resolve --sudo-pwd
+                1)
+                   main;; 
+            esac;;
+        1)
+            main;;
+    esac
+}
+
+function open {
+    echo '1'
+}
+
+function list {
+    echo '1'
+}
+
+function close {
+    echo '1'
+}
+
+function slam {
+    echo '1'
+}
+
+function resize {
+    echo '1'
+}
+
+function passwd {
+    echo '1'
+}
+
+function setkey {
+    echo '1'
+}
+
+function engrave {
+    echo '1'
+}
+
+function bury {
+    echo '1'
+}
+
+function exhume {
+    echo '1'
+}
+main
+eval "$command"
