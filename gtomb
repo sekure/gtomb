@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# gtomb - a wrapper for Tomb 
+# https://github.com/parazyd/gtomb
+# https://github.com/dyne/Tomb
 
 function main {
 command=`zenity --title="gtomb - A GUI wrapper for Tomb" \
@@ -60,23 +64,120 @@ function create {
 }
 
 function open {
-    echo '1'
+    # --sudo-pwd issue
+    tombfile=`zenity --title="Choose a tomb to open" \
+        --file-selection`
+    case $? in
+        0)
+            keyfile=`zenity --title="Choose the key for your tomb" \
+                --file-selection`
+            case $? in
+                0)
+                    tomb open $tombfile -k $keyfile
+                    zenity --title="Success" --info \
+                        --text="Your tomb is now open."
+                    main
+                    eval $command;;
+                1)
+                    main
+                    eval $command;;
+            esac;;
+        1)
+            main
+            eval $command;;
+    esac
 }
 
 function list {
-    echo '1'
+    # Bugged without --get-mountpoint. Find out how to resolve.
+    tmpfile=/tmp/tombtmp
+    tomb list --get-mountpoint > $tmpfile
+    zenity --text-info --title="List of mounted tombs" \
+        --width=800 \
+        --height=600 \
+        --filename=$tmpfile
+
+    case $? in
+        0)
+            rm -f $tmpfile
+            main
+            eval $command;;
+        1)
+            rm -f $tmpfile
+            main
+            eval $command;;
+    esac
 }
 
 function close {
-    echo '1'
+    # --sudo-pwd issue
+    $tombpath=`zenity --title="Choose a tomb to close" \
+        --file-selection --directory`
+    case $? in
+        0)
+            tomb close $tombpath
+            main
+            eval $command;;
+        1)
+            main
+            eval $command;;
+    esac
 }
 
 function slam {
-    echo '1'
+    # --sudo-pwd issue
+    zenity --question --title="Slammin'" \
+        --text="Do you want to slam all tombs?"
+    case $? in
+        0)
+            tomb slam all
+            main
+            eval $command;;
+        1)
+            $tombpath=`zenity --title="Choose a tomb to slam" \
+                --file-selection --directory`
+            case $? in
+                0)
+                    tomb slam $tombpath
+                    main
+                    eval $command;;
+                1)
+                    main
+                    eval $command;;
+            esac;;
+    esac
 }
 
 function resize {
-    echo '1'
+    # --sudo-pwd issue
+    $tombfile=`zenity --title="Choose a tomb to resize" \
+        --file-selection`
+    case $? in
+        0)
+            $newsize=`zenity --title="New tomb size" \
+                --entry \
+                --text="Enter new size of your tomb. Must be larger than current value."
+            case $? in
+                0)
+                    $keyfile=`zenity --title="Choose according keyfile" \
+                        --file-selection`
+                    case $? in
+                        0)
+                            tomb resize $tombfile -s $newsize -k $keyfile
+                            main
+                            eval $command;;
+                        1)
+                            main
+                            eval $command;;
+                    esac;;
+                1)
+                    main
+                    eval $command;;
+            esac;;
+        1)
+            main
+            eval $command;;
+    esac
 }
 
 function passwd {
@@ -95,10 +196,12 @@ function passwd {
 }
 
 function setkey {
+    # --sudo-pwd issue
     echo '1'
 }
 
 function engrave {
+    # output path issue
     echo '1'
 }
 
