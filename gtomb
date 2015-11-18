@@ -156,7 +156,7 @@ function resize {
         0)
             $newsize=`zenity --title="New tomb size" \
                 --entry \
-                --text="Enter new size of your tomb. Must be larger than current value."
+                --text="Enter new size of your tomb. Must be larger than current value."`
             case $? in
                 0)
                     $keyfile=`zenity --title="Choose according keyfile" \
