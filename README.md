@@ -14,3 +14,15 @@ list and the script will run it for you. Easy-peasy.
 ## Dependencies
 * All existing tomb dependencies
 * zenity
+
+## TODO
+* Clean function, to clear keys and passphrases from memory
+* Standalone dig function
+* Standalone forge function
+* Standalone lock function
+* Fix tomb list
+* Fix engrave function
+* and more stuff 
+
+## What you need to do
+* Be patient
