@@ -188,7 +188,11 @@ function _clean {
     tombsize="$rr";     unset tombsize
     keyfile="$rr";      unset keyfile
     sudoassword="$rr";  unset sudoassword
-    rm -f $tombtmp # See for srm/wipe/etc.
+    if [ -f $tombtmp ]
+    then
+        dd if=/dev/urandom of=$tombtmp bs=800 count=1
+        rm -f $tombtmp # See for srm/wipe/etc.
+    fi
     tombtmp="$rr";      unset tombtmp
     newkey="$rr";       unset newkey
     jpegfile="$rr";     unset jpegfile
