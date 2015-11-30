@@ -16,13 +16,9 @@ list and the script will run it for you. Easy-peasy.
 * zenity
 
 ## TODO
-* Clean function, to clear keys and passphrases from memory
-* Standalone dig function
-* Standalone forge function
-* Standalone lock function
-* Fix tomb list
+* Error checking!
 * Fix engrave function
 * and more stuff 
 
 ## What you need to do
-* Be patient
+* Be patient or help with coding :)

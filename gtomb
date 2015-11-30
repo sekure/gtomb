@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 #
 # gtomb - a GUI wrapper for Tomb 
-# parazyd <parazyd AT dyne DOT org>
+# Maintained and written by parazyd <parazyd AT dyne DOT org>
 # https://github.com/parazyd/gtomb
 # https://github.com/dyne/Tomb
 #
@@ -9,9 +9,13 @@
 # intended and should be used with caution.
 #
 
-TOMBPATH=/usr/local/bin/tomb # Set this to your tomb executable's path
+TOMBPATH="/usr/local/bin/tomb" # Set this to your tomb executable's path
 
-# {{{ some pinentry code shamelessly stolen from tomb
+function _ {
+    _clean
+}
+
+# {{{ Some pinentry code shamelessly stolen from tomb
 # Ask user for a password
 # Wraps around the pinentry command, from the GnuPG project, as it
 # provides better security and conveniently use the right toolkit.
@@ -172,14 +176,35 @@ function _failure die() {
 }
 # }}}
 
-# {{{ Main window
-function main {
+# {{{ _clean - Clean function, removes sensitive stuff from memory
+function _clean {
+     local rr="$RANDOM"
+     while [[ ${#rr} -lt 500 ]]; do
+        rr+="$RANDOM"
+    done
+
+    command="$rr";      unset command
+    tombname="$rr";     unset tombname
+    tombsize="$rr";     unset tombsize
+    keyfile="$rr";      unset keyfile
+    sudoassword="$rr";  unset sudoassword
+    rm -f $tombtmp # See for srm/wipe/etc.
+    tombtmp="$rr";      unset tombtmp
+    newkey="$rr";       unset newkey
+    jpegfile="$rr";     unset jpegfile
+}
+# }}}
+
+# {{{ _main - Main window
+function _main {
+    _clean
     command=`zenity \
-        --window-icon=monmort.png \
-        --title="gtomb wrapper for Tomb" \
-        --width=640 --height=380 \
+        --window-icon="monmort.png" \
+        --title="gtomb" \
+        --width=640 \
+        --height=420 \
         --list \
-        --text="gtomb v0.1\nChoose stuff to do now!" \
+        --text="gtomb v0.2\nThe GUI wrapper for Tomb, the crypto undertaker." \
         --separator=" & " \
         --column=Function \
         --column=Description \
@@ -194,298 +219,571 @@ function main {
         "resize" "Resize a tomb to a new size (can only grow)" \
         "passwd" "Change the password of a key" \
         "setkey" "Forge a new key and change the key of an existing tomb" \
-        "engaave" "Generates a QR code of a key to be saved on paper" \
+        "engrave" "Generates a QR code of a key to be saved on paper" \
         "bury" "Hide a key inside a JPEG image" \
         "exhume" "Extract a key from a JPEG image"`
 }
 # }}}
 
-# {{{ All in one: Tomb creation, key forge and tomb lock.
-function create {
-    filename=`zenity \
+# {{{ create - All in one: Tomb creation, key forge and tomb lock.
+function _create {
+    tombname=`zenity \
         --title="Choose where to dig your tomb" \
-        --window-icon=monmort.png \
+        --window-icon="monmort.png" \
         --file-selection \
         --filename="secret.tomb" \
         --save`
+
     case $? in
         0)
             tombsize=`zenity \
                 --title="Tomb Creation" \
-                --window-icon=monmort.png \
+                --window-icon="monmort.png" \
                 --entry \
-                --text="Tomb must be min. 10MB" \
+                --text="A tomb must be min. 10MiB in size." \
                 --entry-text=10`
+
             case $? in
                 0)
-                    $TOMBPATH dig -s $tombsize $filename | \
+                    $TOMBPATH dig -s $tombsize $tombname | \
                         zenity \
                         --title="Digging tomb" \
-                        --window-icon=monmort.png \
-                        --text="Please wait while your tomb is dug." \
+                        --window-icon="monmort.png" \
+                        --text="Please wait while your tomb is being dug." \
                         --progress \
                         --auto-close \
                         --pulsate
 
                     zenity \
                         --title="Done digging" \
-                        --window-icon=monmort.png \
+                        --window-icon="monmort.png" \
                         --info \
-                        --text="Your tomb is dug. Now we will forge a key."
+                        --text="Your tomb has been dug. Now we will forge a key."
 
-                    keyname=`zenity \
+                    keyfile=`zenity \
                         --title="Choose where to forge your key" \
-                        --window-icon=monmort.png \
+                        --window-icon="monmort.png" \
                         --file-selection \
                         --filename="secret.tomb.key" \
                         --save`
-                    $TOMBPATH forge $keyname | \
-                        zenity \
-                        --title="Forging key" \
-                        --window-icon=monmort.png \
-                        --text="Please wait while your key is being forged." \
-                        --progress \
-                        --auto-close \
-                        --pulsate
 
-                    zenity \
-                        --title="Done forging" \
-                        --window-icon=monmort.png \
-                        --info \
-                        --text="Your key is now forged. Time to lock the tomb."
+                    case $? in
+                        0)
+                            $TOMBPATH forge $keyfile | \
+                                zenity \
+                                    --title="Forging key" \
+                                    --window-icon="monmort.png" \
+                                    --text="Please wait while your key is being forged.\n\
+                                        You can move your mouse around and use your computer to speed up the process." \
+                                    --progress \
+                                    --auto-close \
+                                    --pulsate
 
-                    # Ask for sudo password via pinentry and remove pass from memory afterwards.
-                    sudoassword=$(ask_password "Insert sudo password for user $USER")
-                    echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $filename -k $keyname
+                            zenity \
+                                --title="Done forging" \
+                                --window-icon="monmort.png" \
+                                --info \
+                                --text="Your key is now forged. Time to lock the tomb."
 
-                    zenity \
-                        --title="Succes" \
-                        --window-icon=monmort.png \
-                        --info \
-                        --text="Tomb locked!"
+                            # Ask for sudo password via pinentry and remove pass from memory afterwards.
+                            sudoassword=$(ask_password "Insert sudo password for user $USER")
+                            echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $filename -k $keyname | \
+                                zenity \
+                                    --title="Locking tomb" \
+                                    --window-icon="monmort.png" \
+                                    --text="Please wait while your new tomb is being formatted." \
+                                    --progress \
+                                    --auto-close \
+                                    --pulsate
 
-                    main
-                    eval $command
+                            _clean # Clean sensitive stuff from memory
+
+                            zenity \
+                                --title="Succes" \
+                                --window-icon="monmort.png" \
+                                --info \
+                                --text="Tomb locked!"
+
+                            _main
+                            eval "_$command"
+                            ;;
+                        1)
+                            _main
+                            eval "_$command"
+                            ;;
+                    esac
                     ;;
                 1)
-                   main
-                   eval $command
+                   _main
+                   eval "_$command"
                    ;; 
             esac
             ;;
         1)
-            main
-            eval $command
+            _main
+            eval "_$command"
             ;;
     esac
 }
 # }}}
 
-## ADD dig forge and lock
+# {{{ dig - Dig a new tomb
+function _dig {
+    tombname=`zenity \
+        --title="Choose where to dig your tomb" \
+        --window-icon="monmort.png" \
+        --file-selection \
+        --filename="secret.tomb" \
+        --save`
 
-# {{{ Open an existing tomb
-function open {
-    tombfile=`zenity \
-        --title="Choose a tomb to open" \
-        --window-icon=monmort.png \
+    case $? in
+        0)
+            tombsize=`zenity \
+                --title="Tomb digging" \
+                --window-icon="monmort.png" \
+                --entry \
+                --text="A tomb must be min. 10MiB in size" \
+                --entry-text=10`
+
+            case $? in
+                0)
+                    $TOMBPATH dig -s $tombsize $tombname | \
+                        zenity \
+                            --title="Digging new tomb" \
+                            --window-icon="monmort.png" \
+                            --text="Please wait while your tomb is being dug." \
+                            --progress \
+                            --auto-close \
+                            --pulsate
+
+                    _clean # Clean sensitive stuff from memory
+
+                    zenity \
+                        --title="Done digging" \
+                        --window-icon="monmort.png" \
+                        --info \
+                        --text="Your tomb has been dug."
+
+                    _main
+                    eval "_$command"
+                    ;;
+                1)
+                    _main
+                    eval "_$command"
+                    ;;
+            esac
+            ;;
+        1)
+            _main
+            eval "_$command"
+            ;;
+    esac
+}
+# }}}
+
+# {{{ forge - Forge a new key
+function _forge {
+    keyfile=`zenity \
+        --title="Choose where to forge your key" \
+        --window-icon="monmort.png" \
+        --file-selection \
+        --filename="secret.tomb.key" \
+        --save`
+
+    case $? in
+        0)
+            $TOMBPATH forge $keyfile | \
+                zenity \
+                    --title="Forging key" \
+                    --window-icon="monmort.png" \
+                    --text="Please wait while your key is being forged." \
+                    --progress \
+                    --auto-close \
+                    --pulsate
+
+            _clean # Clean sensitive stuff from memory
+
+            zenity \
+                --title="Done forging" \
+                --window-icon="monmort.png" \
+                --info \
+                --text="Your key is now forged."
+
+            _main
+            eval "_$command"
+            ;;
+        1)
+            _main
+            eval "_$command"
+            ;;
+    esac
+}
+# }}}
+
+# {{{ lock - Lock a non-locked tomb
+function _lock {
+    tombname=`zenity \
+        --title="Select tomb to lock" \
+        --window-icon="monmort.png" \
         --file-selection`
+    
     case $? in
         0)
             keyfile=`zenity \
                 --title="Choose the key for your tomb" \
-                --window-icon=monmort.png \
+                --window-icon="monmort.png" \
                 --file-selection`
+
+            case $? in
+                0)  
+                    sudoassword=$(ask_password "Insert sudo password for user $USER")
+                    echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $tombname -k $keyfile | \
+                        zenity \
+                            --title="Locking your tomb..." \
+                            --window-icon="monmort.png" \
+                            --text="Please wait while your tomb is being locked." \
+                            --progress \
+                            --auto-close \
+                            --pulsate
+
+                    _clean # Clean sensitive stuff from memory
+
+                    zenity \
+                        --title="Done locking" \
+                        --window-icon=monmort.png \
+                        --info \
+                        --text="Your tomb is now locked."
+
+                    _main
+                    eval "_$command"
+                    ;;
+                1)
+                    _main
+                    eval "_$command"
+                    ;;
+            esac
+            ;;
+        1)
+            _main
+            eval "_$command"
+            ;;
+    esac
+}
+# }}}
+
+# {{{ open - Open an existing tomb
+function _open {
+    tombname=`zenity \
+        --title="Choose a tomb to open" \
+        --window-icon="monmort.png" \
+        --file-selection`
+
+    case $? in
+        0)
+            keyfile=`zenity \
+                --title="Choose the key for your tomb" \
+                --window-icon="monmort.png" \
+                --file-selection`
+
             case $? in
                 0)
                     sudoassword=$(ask_password "Insert sudo password for user $USER")
-                    echo -e "$sudoassword\n" | sudo -S $TOMBPATH open $tombfile -k $keyfile
+                    echo -e "$sudoassword\n" | sudo -S $TOMBPATH open $tombname -k $keyfile
+
+                    _clean # Clean sensitive stuff from memory
 
                     zenity \
                         --title="Success" \
-                        --window-icon=monmort.png \
+                        --window-icon="monmort.png" \
                         --info \
                         --text="Your tomb is now open."
 
-                    main
-                    eval $command;;
+                    _main
+                    eval "_$command";;
                 1)
-                    main
-                    eval $command;;
+                    _main
+                    eval "_$command";;
             esac
             ;;
         1)
-            main
-            eval $command
+            _main
+            eval "_$command"
             ;;
     esac
 }
 # }}}
 
-# {{{ FIX BUG HERE!!!
-function list {
-    # Bugged, fix with help of close sed regex
-    tmpfile=/tmp/tombtmp
-    tomb list --get-mountpoint > $tmpfile
-    zenity --text-info --title="List of mounted tombs" \
-        --width=600 \
-        --height=480 \
-        --filename=$tmpfile
+# {{{ list - list all open tombs, along with their mountpoint
+function _list {
+    tombtmp="/tmp/tombtmp"
+    $TOMBPATH list --get-mountpoint > $tombtmp
+    tombname=`cat $tombtmp | \
+        sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
+        zenity \
+            --title="Currently open tombs" \
+            --window-icon="monmort.png" \
+            --width=640 --height=380 --list \
+            --separator=" & " \
+            --text="Here are your open tombs" \
+            --column=Tomb \
+            --column=Path `
 
     case $? in
         0)
-            rm -f $tmpfile
-            main
-            eval $command
+            _clean
+            _main
+            eval "_$command"
             ;;
         1)
-            rm -f $tmpfile
-            main
-            eval $command
+            _clean
+            _main
+            eval "_$command"
             ;;
     esac
 }
 # }}}
 
-# {{{ Close open tomb(s)
-function close {
-    tmpfile="/tmp/tombtmp"
-    $TOMBPATH list --get-mountpoint > $tmpfile
-    tombchoice=`cat $tmpfile | \
+# {{{ close - Close open tomb(s)
+function _close {
+    tombtmp="/tmp/tombtmp"
+    $TOMBPATH list --get-mountpoint > $tombtmp
+    echo "/tombs/all" >> $tombtmp
+    tombname=`cat $tombtmp | \
         sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
         zenity \
             --title="Choose a tomb to close" \
-            --window-icon=monmort.png \
+            --window-icon="monmort.png" \
             --width=640 --height=380 --list \
             --separator=" & " \
             --column=Tomb \
-            --column=Path \`
+            --column=Path `
+
+        case $? in
+            0)
+                # Ask for sudo password via pinentry and remove pass from memory afterwards.
+                sudoassword=$(ask_password "Insert sudo password for user $USER")
+                echo -e "$sudoassword\n" | sudo -S $TOMBPATH close $tombname
+
+                _clean # Clean sensitive stuff from memory
+
+                zenity \
+                    --title="Success" \
+                    --window-icon="monmort.png" \
+                    --info \
+                    --text="Closed successfully!"
+
+                _main
+                eval "_$command"
+                ;;
+            1)
+                _main
+                eval "_$command"
+                ;;
+        esac
 }
 # }}}
 
-# {{{ Slam open tombs
-function slam {
-    zenity --question --title="Slammin'" \
-        --text="Do you want to slam all tombs?"
-    case $? in
-        0)
-            sudoassword=$(ask_password "Insert sudo password for user $USER")
-            echo -e "$sudoassword\n" | sudo -S tomb slam all
+# {{{ slam - Slam open tombs
+function _slam {
+    tombtmp="/tmp/tombtmp"
+    $TOMBPATH list --get-mountpoint > $tombtmp
+    echo "/tombs/all" >> $tombtmp
+    tombname=`cat $tombtmp | \
+        sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
+        zenity \
+            --title="Choose a tomb to slam" \
+            --window-icon="monmort.png" \
+            --width=640 --height=380 --list \
+            --separator=" & " \
+            --column=Tomb \
+            --column=Path `
 
-            zenity --info --title="Slammin'" \
-                --text="All tombs slammed!"
+        case $? in
+            0)
+                # Ask for sudo password via pinentry and remove pass from memory afterwards.
+                sudoassword=$(ask_password "Insert sudo password for user $USER")
+                echo -e "$sudoassword\n" | sudo -S $TOMBPATH slam $tombname
 
-            main
-            eval $command
-            ;;
-        1)
-            $tombpath=`zenity --title="Choose a tomb to slam" \
-                --file-selection --directory`
-            case $? in
-                0)
-                    tomb slam $tombpath
-                    main
-                    eval $command
-                    ;;
-                1)
-                    main
-                    eval $command
-                    ;;
-            esac
-            ;;
-    esac
+                _clean # Clean sensitive stuff from memory
+
+                zenity \
+                    --title="Success" \
+                    --window-icon="monmort.png" \
+                    --info \
+                    --text="Tomb slammed successfully!"
+
+                _main
+                eval "_$command"
+                ;;
+            1)
+                _main
+                eval "_$command"
+                ;;
+        esac
 }
 # }}}
 
-# {{{ Resize an existing *closed* tomb
-function resize {
-    $tombfile=`zenity \
+# {{{ resize - Resize an existing *closed* tomb
+function _resize {
+    tombname=`zenity \
         --title="Choose a tomb to resize" \
-        --window-icon=monmort.png \
+        --window-icon="monmort.png" \
         --file-selection`
+
     case $? in
         0)
-            $newsize=`zenity \
+            tombsize=`zenity \
                 --title="New tomb size" \
-                --window-icon=monmort.png \
+                --window-icon="monmort.png" \
                 --entry \
-                --text="Enter new size of your tomb. Must be larger than current value."`
+                --text="Enter new size of your tomb in MiB. Must be larger than current value." \
+                --entry-text=100`
             case $? in
                 0)
-                    $keyfile=`zenity \
+                    keyfile=`zenity \
                         --title="Choose according keyfile" \
-                        --window-icon=monmort.png \
+                        --window-icon="monmort.png" \
                         --file-selection`
                     case $? in
                         0)
                             sudoassword=$(ask_password "Insert sudo password for user $USER")
                             echo -e "$sudoassword\n" | sudo -S $TOMBPATH resize \
-                                $tombfile -s $newsize -k $keyfile
+                                $tombname -s $tombsize -k $keyfile
+
+                            _clean # Clean sensitive stuff from memory
 
                             zenity \
                                 --title="Success" \
-                                --window-icon=monmort.png \
+                                --window-icon="monmort.png" \
+                                --info \
                                 --text="Tomb resized successfully"
 
-                            main
-                            eval $command
+                            _main
+                            eval "_$command"
                             ;;
                         1)
-                            main
-                            eval $command
+                            _main
+                            eval "_$command"
                             ;;
                     esac
                     ;;
                 1)
-                    main
-                    eval $command
+                    _main
+                    eval "_$command"
                     ;;
             esac
             ;;
         1)
-            main
-            eval $command
+            _main
+            eval "_$command"
             ;;
     esac
 }
 # }}}
 
-# {{{ Change existing key's passphrase
-function passwd {
+# {{{ passwd - Change existing key's passphrase
+function _passwd {
     keyfile=`zenity \
         --title="Choose a keyfile" \
-        --window-icon=monmort.png \
+        --window-icon="monmort.png" \
         --file-selection` 
 
     case $? in
         0)
             $TOMBPATH passwd -k $keyfile
+            
+            _clean # Clean sensitive stuff from memory
+
             zenity \
                 --title="Success" \
-                --window-icon=monmort.png \
+                --window-icon="monmort.png" \
                 --info \
                 --text="Password successfully changed!"
 
-            main
-            eval $command
+            _main
+            eval "_$command"
             ;;
         1)
-            main
-            eval $command
+            _main
+            eval "_$command"
             ;;
     esac
 }
 # }}}
 
-# {{{ Change a tomb's keyfile
+# {{{ setkey - Change a tomb's keyfile
 function setkey {
-    echo '1'
+    tombname=`zenity \
+        --title="Choose a tomb to change its keyfile" \
+        --window-icon="monmort.png" \
+        --file-selection`
+
+    case $? in
+        0)
+            keyfile=`zenity \
+                --title="Choose your tomb's old keyfile" \
+                --window-icon="monmort.png" \
+                --file-selection`
+
+            case $? in
+                0)
+                    newkey=`zenity \
+                        --title="Choose your tomb's new keyfile" \
+                        --window-icon="monmort.png" \
+                        --file-selection`
+
+                    case $? in
+                        0)
+                            sudoassword=$(ask_password "Insert sudo password for $USER")
+                            echo -e "$sudoassword\n" | sudo -S $TOMBPATH setkey \
+                                -k $newkey $keyfile $tombname | \
+                                zenity \
+                                    --title="Changing key"
+                                    --window-icon="monmort.png" \
+                                    --text="Please wait while your tomb's key is being changed." \
+                                    --progress \
+                                    --auto-close \
+                                    --pulsate
+
+                            _clean
+
+                            zenity \
+                                --title="Success" \
+                                --window-icon="monmort.png" \
+                                --info \
+                                --text="Tomb's keyfile successfully changed!"
+
+                            _main
+                            eval "_$command"
+                            ;;
+                        1)
+                            _main
+                            eval "_$command"
+                            ;;
+                    esac
+                    ;;
+                1)
+                    _main
+                    eval "_$command"
+                    ;;
+            esac
+            ;;
+        1)
+            _main
+            eval "_$command"
+            ;;
+    esac
 }
 # }}}
 
-# {{{ engrave - generate QR code of a key
-function engrave {
+# {{{ engrave - generate QR code of a key FIX
+function _engrave {
     # output path issue
-    echo '1'
+    zenity \
+        --title="Sorry" \
+        --window-icon="monmort.png" \
+        --info \
+        --text="This feature doesn't work yet in gtomb."
 }
 # }}}
 
@@ -493,14 +791,14 @@ function engrave {
 function bury {
     keyfile=`zenity \
         --title="Choose keyfile" \
-        --window-icon=monmort.png \
+        --window-icon="monmort.png" \
         --file-selection`
 
     case $? in
         0)
             jpegfile=`zenity \
                 --title="Choose JPEG file" \
-                --window-icon=monmort.png \
+                --window-icon="monmort.png" \
                 --file-selection`
 
             case $? in
@@ -508,39 +806,41 @@ function bury {
                     $TOMBPATH bury -k $keyfile $jpegfile
                     zenity \
                         --title="Success" \
-                        --window-icon=monmort.png \
+                        --window-icon="monmort.png" \
                         --info \
                         --text="Your key is how hidden in $jpegfile"
 
-                    main
-                    eval $command
+                    _clean # Clean sensitive stuff from memory
+
+                    _main
+                    eval "_$command"
                     ;;
                 1)
-                    main
-                    eval $command
+                    _main
+                    eval "_$command"
                     ;;
             esac
             ;;
         1)
-            main
-            $command
+            _main
+            "_$command"
             ;;
     esac
 }
 # }}}
 
-# {{{ extract keyfile from JPEG
+# {{{ exhume - extract keyfile from JPEG
 function exhume {
     jpegfile=`zenity \
         --title="Choose JPEG file" \
-        --window-icon=monmort.png \
+        --window-icon="monmort.png" \
         --file-selection`
 
     case $? in
         0)
             keyfile=`zenity \
                 --title="Choose where to extract your key" \
-                --window-icon=monmort.png \
+                --window-icon="monmort.png" \
                 --file-selection \
                 --save`
 
@@ -550,25 +850,28 @@ function exhume {
 
                     zenity \
                         --title="Success" \
-                        --window-icon=monmort.png \
+                        --window-icon="monmort.png" \
                         --info \
                         --text="Your keyfile is extracted to $keyfile"
 
-                    main
-                    eval $command
+                    _clean # Clean sensitive stuff from memory
+
+                    _main
+                    eval "_$command"
                     ;;
                 1)
-                    main
-                    eval $command
+                    _main
+                    eval "_$command"
                     ;;
             esac
             ;;
         1)
-            main
-            $command
+            _main
+            "_$command"
             ;;
     esac
 }
 # }}}
-main
-eval "$command"
+
+_main
+eval "_$command"
