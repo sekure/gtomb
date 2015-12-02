@@ -12,12 +12,11 @@ The UI consists of all commands included in Tomb. You can choose a command you w
 list and the script will run it for you. Easy-peasy.
 
 ## Dependencies
-* All existing tomb dependencies
+* tomb
 * zenity
 
 ## TODO
 * Error checking!
-* Fix engrave function
 * and more stuff 
 
 ## What you need to do
