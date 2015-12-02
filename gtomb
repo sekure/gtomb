@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 #
 # gtomb - a GUI wrapper for Tomb 
+# version 0.3
 # Maintained and written by parazyd <parazyd AT dyne DOT org>
 # https://github.com/parazyd/gtomb
 # https://github.com/dyne/Tomb
@@ -188,6 +189,7 @@ function _clean {
     tombsize="$rr";     unset tombsize
     keyfile="$rr";      unset keyfile
     sudoassword="$rr";  unset sudoassword
+    tombtmp=/tmp/tombtmp
     if [ -f $tombtmp ]
     then
         dd if=/dev/urandom of=$tombtmp bs=800 count=1
@@ -208,7 +210,7 @@ function _main {
         --width=640 \
         --height=420 \
         --list \
-        --text="gtomb v0.2\nThe GUI wrapper for Tomb, the crypto undertaker." \
+        --text="gtomb v0.3\nThe GUI wrapper for Tomb, the crypto undertaker." \
         --separator=" & " \
         --column=Function \
         --column=Description \
@@ -782,12 +784,44 @@ function setkey {
 
 # {{{ engrave - generate QR code of a key FIX
 function _engrave {
-    # output path issue
-    zenity \
-        --title="Sorry" \
+    keyfile=`zenity \
+        --title="Choose keyfile to engrave" \
         --window-icon="monmort.png" \
-        --info \
-        --text="This feature doesn't work yet in gtomb."
+        --file-selection`
+
+    case $? in
+        0)
+            jpegfile=`zenity \
+                --title="Choose where to save keyfile (PNG format)" \
+                --window-icon="monmort.png" \
+                --file-selection \
+                --save`
+            
+            case $? in
+                0)
+                    awk '/^-----/ {next}; /^Version/ {next}; {print $0}' $keyfile \
+                        | qrencode --size 4 --level H --casesensitive -o $jpegfile
+                    
+                    zenity \
+                        --title="Success" \
+                        --window-icon="monmort.png" \
+                        --info \
+                        --text="QR code generated in $jpegfile"
+
+                    _main
+                    eval "_$command"
+                    ;;
+                1)
+                    _main
+                    eval "_$command"
+                    ;;
+            esac
+            ;;
+        1)
+            _main
+            eval "_$command"
+            ;;
+    esac
 }
 # }}}
 
