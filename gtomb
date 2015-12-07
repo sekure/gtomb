@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 #
 # gtomb - a GUI wrapper for Tomb 
-# version 0.3
+# 
 # Maintained and written by parazyd <parazyd AT dyne DOT org>
 # https://github.com/parazyd/gtomb
 # https://github.com/dyne/Tomb
@@ -9,6 +9,8 @@
 # gtomb is experimental software. It still does not work completely as 
 # intended and should be used with caution.
 #
+
+ver=0.4
 
 TOMBPATH="/usr/local/bin/tomb" # Set this to your tomb executable's path
 
@@ -210,7 +212,7 @@ function _main {
         --width=640 \
         --height=420 \
         --list \
-        --text="gtomb v0.3\nThe GUI wrapper for Tomb, the crypto undertaker." \
+        --text="gtomb v$ver\nThe GUI wrapper for Tomb, the crypto undertaker." \
         --separator=" & " \
         --column=Function \
         --column=Description \
@@ -293,7 +295,8 @@ function _create {
 
                             # Ask for sudo password via pinentry and remove pass from memory afterwards.
                             sudoassword=$(ask_password "Insert sudo password for user $USER")
-                            echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $filename -k $keyname | \
+                                echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $tombname -k $keyfile | \
+                                sudoassword=$(ask_password "Insert sudo password for user $USER")
                                 zenity \
                                     --title="Locking tomb" \
                                     --window-icon="monmort.png" \
@@ -553,7 +556,7 @@ function _list {
 function _close {
     tombtmp="/tmp/tombtmp"
     $TOMBPATH list --get-mountpoint > $tombtmp
-    echo "/tombs/all" >> $tombtmp
+    echo "/all" >> $tombtmp
     tombname=`cat $tombtmp | \
         sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
         zenity \
@@ -593,7 +596,7 @@ function _close {
 function _slam {
     tombtmp="/tmp/tombtmp"
     $TOMBPATH list --get-mountpoint > $tombtmp
-    echo "/tombs/all" >> $tombtmp
+    echo "/all" >> $tombtmp
     tombname=`cat $tombtmp | \
         sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
         zenity \
