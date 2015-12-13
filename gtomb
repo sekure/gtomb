@@ -253,7 +253,7 @@ function _dig {
     # Check for existing tomb.
     if [[ -f $tombname ]]; then
         zenity \
-            --title="Error!" \
+            --title="Error" \
             --window-icon="monmort.png" \
             --error \
             --text="This tomb already exists. I'm not digging here."
@@ -261,7 +261,7 @@ function _dig {
     # Check for empty path.
     elif [[ $tombname == "" ]]; then
         zenity \
-            --title="Warning!" \
+            --title="Warning" \
             --window-icon="monmort.png" \
             --warning \
             --text="Try again."
@@ -284,7 +284,7 @@ function _dig {
             re='^[0-9]+$'
             if ! [[ $tombsize =~ $re ]]; then
                 zenity \
-                    --title="Error!" \
+                    --title="Error" \
                     --window-icon="monmort.png" \
                     --error \
                     --text="Please choose a valid number."
@@ -327,7 +327,7 @@ function _dig {
                         kill -9 $PID_DD
 
                         zenity \
-                            --title="Canceled!" \
+                            --title="Canceled" \
                             --window-icon="monmort.png" \
                             --text="Tomb digging canceled." \
                             --warning
@@ -369,24 +369,36 @@ function _dig {
 
 # {{{ forge - Forge a new key
 function _forge {
+    # Get keyfile's name and path.
     keyfile=`zenity \
         --title="Choose where to forge your key" \
         --window-icon="monmort.png" \
         --file-selection \
         --filename="secret.tomb.key" \
         --save`
+    
+    res=$?
 
+    # Check if keyfile exists.
     if [[ -f $keyfile ]]; then
         zenity \
-            --title="Error!" \
+            --title="Error" \
             --window-icon="monmort.png" \
             --error \
             --text="This key already exists. I'm not overwriting."
         exec _main
+    elif [[ $keyfile == "" ]]; then
+        zenity \
+            --title="Warning" \
+            --window-icon="monmort.png" \
+            --warning \
+            --text="Try again."
+        exec _main
     fi
 
-    case $? in
+    case $res in
         0)
+            # Forge the keyfile.
             $TOMBPATH forge $keyfile | \
                 zenity \
                     --title="Forging key" \
@@ -397,6 +409,7 @@ function _forge {
                     --auto-close \
                     --pulsate &
 
+            # Track PIDs and catch cancellation.
             PID_ZEN=$(ps -C zenity h -o pid,command | grep "Forging key" | awk '{print $1}')
 
             while [ "$PID_ZEN" != "" ]; do
@@ -405,12 +418,12 @@ function _forge {
                                                             # ^ also unsafe
                                                             # find out how to catch
                                                             # correct one
-                sleep 2
+                sleep 1 # Test different values.
             done
 
             if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
-                    
                 kill -9 $PID_DD
+
                 zenity \
                     --title="Canceled!" \
                     --window-icon="monmort.png" \
