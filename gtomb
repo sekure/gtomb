@@ -10,10 +10,11 @@
 # intended and should be used with caution.
 #
 
-ver="0.5.1"
+ver="0.5.2"
 TOMBPATH="/usr/local/bin/tomb" # Set this to your tomb executable's path
 
 function _ {
+    # I like cleaning.
     _clean
 }
 
@@ -180,11 +181,15 @@ function _failure die() {
 
 # {{{ _clean - Clean function, removes sensitive stuff from memory
 function _clean {
-     local rr="$RANDOM"
-     while [[ ${#rr} -lt 500 ]]; do
+    
+    echo "Cleaning..." # For debugging.
+    unset $?
+    local rr="$RANDOM"
+    while [[ ${#rr} -lt 500 ]]; do
         rr+="$RANDOM"
     done
 
+    # Overwrite and unset vars.
     command="$rr";      unset command
     tombname="$rr";     unset tombname
     tombsize="$rr";     unset tombsize
@@ -235,6 +240,7 @@ function _main {
 
 # {{{ dig - Dig a new tomb
 function _dig {
+    # Get new tomb's name and path.
     tombname=`zenity \
         --title="Choose where to dig your tomb" \
         --window-icon="monmort.png" \
@@ -242,6 +248,9 @@ function _dig {
         --filename="secret.tomb" \
         --save`
 
+    res=$?
+
+    # Check for existing tomb.
     if [[ -f $tombname ]]; then
         zenity \
             --title="Error!" \
@@ -249,10 +258,19 @@ function _dig {
             --error \
             --text="This tomb already exists. I'm not digging here."
             exec _main
+    # Check for empty path.
+    elif [[ $tombname == "" ]]; then
+        zenity \
+            --title="Warning!" \
+            --window-icon="monmort.png" \
+            --warning \
+            --text="Try again."
+        exec _main
     fi
 
-    case $? in
+    case $res in
         0)
+            # Get tomb's size.
             tombsize=`zenity \
                 --title="Tomb digging" \
                 --window-icon="monmort.png" \
@@ -260,8 +278,29 @@ function _dig {
                 --text="Enter the size of your tomb in MiB (min. 10 MiB):" \
                 --entry-text=10`
 
-            case $? in
+            res=$?
+
+            # See if it's an actual integer.
+            re='^[0-9]+$'
+            if ! [[ $tombsize =~ $re ]]; then
+                zenity \
+                    --title="Error!" \
+                    --window-icon="monmort.png" \
+                    --error \
+                    --text="Please choose a valid number."
+            elif [[ $tombsize == "" ]]; then
+                zenity \
+                    --title="Warning" \
+                    --window-icon="monmort.png" \
+                    --error \
+                    --text="Try again."
+
+                exec _main
+            fi
+
+            case $res in
                 0)
+                    # Dig teh tomb.
                     $TOMBPATH dig -s $tombsize $tombname | \
                         zenity \
                             --title="Digging new tomb" \
@@ -271,22 +310,20 @@ function _dig {
                             --auto-close \
                             --pulsate &
 
+                    # Control Zenity and dd's PIDs to catch cancelling.
                     PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
-
                     while [ "$PID_ZEN" != "" ]; do
                         PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
                         PID_DD=$(ps -C dd h -o pid,command | grep "$tombname" | awk '{print $1}')
-
                         #PID_DD=$(ps -C dd h -o pid,command | grep " of=" | awk '{print $1}')
                                                             # ^ unsafe for other dds
                                                             # doesn't work when using
                                                             # a var like $tombname
                                                             # sometimes
-                        sleep 2 # test out
+                        sleep 1 # Test different values here.
                     done
 
                     if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
-
                         kill -9 $PID_DD
 
                         zenity \
@@ -295,7 +332,7 @@ function _dig {
                             --text="Tomb digging canceled." \
                             --warning
 
-                        rm -f $tombname # try srm/wipe
+                        rm -f $tombname # Try srm/wipe here, but not actually necessary.
                         exec _main
                     fi
 
@@ -339,6 +376,15 @@ function _forge {
         --filename="secret.tomb.key" \
         --save`
 
+    if [[ -f $keyfile ]]; then
+        zenity \
+            --title="Error!" \
+            --window-icon="monmort.png" \
+            --error \
+            --text="This key already exists. I'm not overwriting."
+        exec _main
+    fi
+
     case $? in
         0)
             $TOMBPATH forge $keyfile | \
@@ -349,11 +395,22 @@ function _forge {
                     You can move your mouse around and use your computer to speed up the process." \
                     --progress \
                     --auto-close \
-                    --pulsate
+                    --pulsate &
 
-            if [[ $? == 1 ]]; then
-                killall dd # possibly unsafe
+            PID_ZEN=$(ps -C zenity h -o pid,command | grep "Forging key" | awk '{print $1}')
 
+            while [ "$PID_ZEN" != "" ]; do
+                PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
+                PID_DD=$(ps -C dd h -o pid,command | grep " if=" | awk '{print $1}')
+                                                            # ^ also unsafe
+                                                            # find out how to catch
+                                                            # correct one
+                sleep 2
+            done
+
+            if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
+                    
+                kill -9 $PID_DD
                 zenity \
                     --title="Canceled!" \
                     --window-icon="monmort.png" \
@@ -372,12 +429,10 @@ function _forge {
                 --info \
                 --text="Your key is now forged."
 
-            _main
-            eval "_$command"
+            exec _main
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
