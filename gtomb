@@ -10,8 +10,7 @@
 # intended and should be used with caution.
 #
 
-ver=0.4
-
+ver="0.5.1"
 TOMBPATH="/usr/local/bin/tomb" # Set this to your tomb executable's path
 
 function _ {
@@ -230,6 +229,8 @@ function _main {
         "engrave" "Generates a QR code of a key to be saved on paper" \
         "bury" "Hide a key inside a JPEG image" \
         "exhume" "Extract a key from a JPEG image"`
+
+    eval "_$command"
 }
 # }}}
 
@@ -314,23 +315,19 @@ function _create {
                                 --text="Tomb locked!"
 
                             _main
-                            eval "_$command"
                             ;;
                         1)
                             _main
-                            eval "_$command"
                             ;;
                     esac
                     ;;
                 1)
-                   _main
-                   eval "_$command"
+                   exec _main
                    ;; 
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -345,13 +342,22 @@ function _dig {
         --filename="secret.tomb" \
         --save`
 
+    if [[ -f $tombname ]]; then
+        zenity \
+            --title="Error!" \
+            --window-icon="monmort.png" \
+            --error \
+            --text="This tomb already exists. I'm not digging here."
+            exec _main
+    fi
+
     case $? in
         0)
             tombsize=`zenity \
                 --title="Tomb digging" \
                 --window-icon="monmort.png" \
                 --entry \
-                --text="A tomb must be min. 10MiB in size" \
+                --text="Enter the size of your tomb in MiB (min. 10 MiB):" \
                 --entry-text=10`
 
             case $? in
@@ -363,7 +369,35 @@ function _dig {
                             --text="Please wait while your tomb is being dug." \
                             --progress \
                             --auto-close \
-                            --pulsate
+                            --pulsate &
+
+                    PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
+
+                    while [ "$PID_ZEN" != "" ]; do
+                        PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
+                        PID_DD=$(ps -C dd h -o pid,command | grep "$tombname" | awk '{print $1}')
+
+                        #PID_DD=$(ps -C dd h -o pid,command | grep " of=" | awk '{print $1}')
+                                                            # ^ unsafe for other dds
+                                                            # doesn't work when using
+                                                            # a var like $tombname
+                                                            # sometimes
+                        sleep 2 # test out
+                    done
+
+                    if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
+
+                        kill -9 $PID_DD
+
+                        zenity \
+                            --title="Canceled!" \
+                            --window-icon="monmort.png" \
+                            --text="Tomb digging canceled." \
+                            --warning
+
+                        rm -f $tombname # try srm/wipe
+                        exec _main
+                    fi
 
                     _clean # Clean sensitive stuff from memory
 
@@ -373,18 +407,24 @@ function _dig {
                         --info \
                         --text="Your tomb has been dug."
 
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    zenity \
+                        --title="Canceled" \
+                        --window-icon="monmort.png" \
+                        --info \
+                        --text="Tomb digging canceled."
+
+                    exec _main
+                    ;;
+                1)
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -405,10 +445,24 @@ function _forge {
                 zenity \
                     --title="Forging key" \
                     --window-icon="monmort.png" \
-                    --text="Please wait while your key is being forged." \
+                    --text="Please wait while your key is being forged.\n\
+                    You can move your mouse around and use your computer to speed up the process." \
                     --progress \
                     --auto-close \
                     --pulsate
+
+            if [[ $? == 1 ]]; then
+                killall dd # possibly unsafe
+
+                zenity \
+                    --title="Canceled!" \
+                    --window-icon="monmort.png" \
+                    --text="Forging canceled." \
+                    --warning
+
+                rm -f $keyfile
+                exec _main
+            fi
 
             _clean # Clean sensitive stuff from memory
 
@@ -915,4 +969,3 @@ function exhume {
 # }}}
 
 _main
-eval "_$command"
