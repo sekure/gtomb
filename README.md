@@ -16,6 +16,7 @@ list and the script will run it for you. Easy-peasy.
 ## TODO
 * Error checking!
 * Fix crashing on failing the sudo password
+* Embed icon into script
 * and more stuff 
 
 ## What you need to do
