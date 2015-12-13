@@ -18,6 +18,16 @@ function _ {
     _clean
 }
 
+
+function _sudo {
+    sudoassword=$(ask_password "Insert sudo password for user $USER") 
+    echo -e "$sudoassword\n" | sudo -S touch /tmp/sudochk
+    if ![ -f /tmp/sudochk ]; then
+        _sudo
+    else
+        sudo -v
+    fi
+}
 # {{{ Some pinentry code shamelessly stolen from tomb
 # Ask user for a password
 # Wraps around the pinentry command, from the GnuPG project, as it
@@ -189,7 +199,6 @@ function _clean {
         rr+="$RANDOM"
     done
 
-    # Overwrite and unset vars.
     command="$rr";      unset command
     tombname="$rr";     unset tombname
     tombsize="$rr";     unset tombsize
@@ -199,7 +208,7 @@ function _clean {
     if [ -f $tombtmp ]
     then
         dd if=/dev/urandom of=$tombtmp bs=800 count=1
-        rm -f $tombtmp # See for srm/wipe/etc.
+        rm -f $tombtmp
     fi
     tombtmp="$rr";      unset tombtmp
     newkey="$rr";       unset newkey
@@ -240,7 +249,9 @@ function _main {
 
 # {{{ dig - Dig a new tomb
 function _dig {
-    # Get new tomb's name and path.
+
+# Choose a tomb name, then type in the tomb's size in MiB and finally, dig the tomb.
+
     tombname=`zenity \
         --title="Choose where to dig your tomb" \
         --window-icon="monmort.png" \
@@ -250,7 +261,6 @@ function _dig {
 
     res=$?
 
-    # Check for existing tomb.
     if [[ -f $tombname ]]; then
         zenity \
             --title="Error" \
@@ -258,7 +268,7 @@ function _dig {
             --error \
             --text="This tomb already exists. I'm not digging here."
             exec _main
-    # Check for empty path.
+    d
     elif [[ $tombname == "" ]]; then
         zenity \
             --title="Warning" \
@@ -270,17 +280,14 @@ function _dig {
 
     case $res in
         0)
-            # Get tomb's size.
             tombsize=`zenity \
                 --title="Tomb digging" \
                 --window-icon="monmort.png" \
                 --entry \
-                --text="Enter the size of your tomb in MiB (min. 10 MiB):" \
-                --entry-text=10`
+                --text="Enter the size of your tomb in MiB (min. 10 MiB):"`
 
             res=$?
 
-            # See if it's an actual integer.
             re='^[0-9]+$'
             if ! [[ $tombsize =~ $re ]]; then
                 zenity \
@@ -288,19 +295,18 @@ function _dig {
                     --window-icon="monmort.png" \
                     --error \
                     --text="Please choose a valid number."
+                exec _main
             elif [[ $tombsize == "" ]]; then
                 zenity \
                     --title="Warning" \
                     --window-icon="monmort.png" \
                     --error \
                     --text="Try again."
-
                 exec _main
             fi
 
             case $res in
                 0)
-                    # Dig teh tomb.
                     $TOMBPATH dig -s $tombsize $tombname | \
                         zenity \
                             --title="Digging new tomb" \
@@ -310,17 +316,11 @@ function _dig {
                             --auto-close \
                             --pulsate &
 
-                    # Control Zenity and dd's PIDs to catch cancelling.
                     PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
                     while [ "$PID_ZEN" != "" ]; do
                         PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
                         PID_DD=$(ps -C dd h -o pid,command | grep "$tombname" | awk '{print $1}')
-                        #PID_DD=$(ps -C dd h -o pid,command | grep " of=" | awk '{print $1}')
-                                                            # ^ unsafe for other dds
-                                                            # doesn't work when using
-                                                            # a var like $tombname
-                                                            # sometimes
-                        sleep 1 # Test different values here.
+                        sleep 1
                     done
 
                     if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
@@ -332,11 +332,11 @@ function _dig {
                             --text="Tomb digging canceled." \
                             --warning
 
-                        rm -f $tombname # Try srm/wipe here, but not actually necessary.
+                        rm -f $tombname
                         exec _main
                     fi
 
-                    _clean # Clean sensitive stuff from memory
+                    _clean
 
                     zenity \
                         --title="Done digging" \
@@ -368,8 +368,9 @@ function _dig {
 # }}}
 
 # {{{ forge - Forge a new key
+
+# Select new key's path, forge the key and create its passphrase.
 function _forge {
-    # Get keyfile's name and path.
     keyfile=`zenity \
         --title="Choose where to forge your key" \
         --window-icon="monmort.png" \
@@ -379,7 +380,6 @@ function _forge {
     
     res=$?
 
-    # Check if keyfile exists.
     if [[ -f $keyfile ]]; then
         zenity \
             --title="Error" \
@@ -398,7 +398,6 @@ function _forge {
 
     case $res in
         0)
-            # Forge the keyfile.
             $TOMBPATH forge $keyfile | \
                 zenity \
                     --title="Forging key" \
@@ -409,16 +408,12 @@ function _forge {
                     --auto-close \
                     --pulsate &
 
-            # Track PIDs and catch cancellation.
             PID_ZEN=$(ps -C zenity h -o pid,command | grep "Forging key" | awk '{print $1}')
 
             while [ "$PID_ZEN" != "" ]; do
                 PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
                 PID_DD=$(ps -C dd h -o pid,command | grep " if=" | awk '{print $1}')
-                                                            # ^ also unsafe
-                                                            # find out how to catch
-                                                            # correct one
-                sleep 1 # Test different values.
+                sleep 1
             done
 
             if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
@@ -434,7 +429,7 @@ function _forge {
                 exec _main
             fi
 
-            _clean # Clean sensitive stuff from memory
+            _clean
 
             zenity \
                 --title="Done forging" \
@@ -457,15 +452,37 @@ function _lock {
         --title="Select tomb to lock" \
         --window-icon="monmort.png" \
         --file-selection`
+
+    res=$?
     
-    case $? in
+    if [[ $tombname == "" ]]; then
+        zenity \
+            --title="Warning" \
+            --window-icon="monmort.png" \
+            --warning \
+            --text="Try again."
+        exec _main
+    fi
+    
+    case $res in
         0)
             keyfile=`zenity \
                 --title="Choose the key for your tomb" \
                 --window-icon="monmort.png" \
                 --file-selection`
 
-            case $? in
+            res=$?
+
+            if [[ $keyfile == "" ]]; then
+                zenity \
+                    --title="Warning" \
+                    --window-icon="monmort.png" \
+                    --warning \
+                    --text="Try again."
+                exec _main
+            fi
+
+            case $res in
                 0)  
                     sudoassword=$(ask_password "Insert sudo password for user $USER")
                     echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $tombname -k $keyfile | \
@@ -485,18 +502,15 @@ function _lock {
                         --info \
                         --text="Your tomb is now locked."
 
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -807,7 +821,7 @@ function setkey {
 }
 # }}}
 
-# {{{ engrave - generate QR code of a key FIX
+# {{{ engrave - generate QR code of a key
 function _engrave {
     keyfile=`zenity \
         --title="Choose keyfile to engrave" \
