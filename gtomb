@@ -215,7 +215,6 @@ function _main {
         --separator=" & " \
         --column=Function \
         --column=Description \
-        "create" "Create a new tomb, forge its key and lock the tomb" \
         "dig" "Dig a new tomb of chosen size" \
         "forge" "Forge a new key used to lock tombs" \
         "lock" "Lock a non-locked tomb using an existing key" \
