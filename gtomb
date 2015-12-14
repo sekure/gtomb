@@ -18,16 +18,6 @@ function _ {
     _clean
 }
 
-
-function _sudo {
-    sudoassword=$(ask_password "Insert sudo password for user $USER") 
-    echo -e "$sudoassword\n" | sudo -S touch /tmp/sudochk
-    if ![ -f /tmp/sudochk ]; then
-        _sudo
-    else
-        sudo -v
-    fi
-}
 # {{{ Some pinentry code shamelessly stolen from tomb
 # Ask user for a password
 # Wraps around the pinentry command, from the GnuPG project, as it
@@ -250,8 +240,6 @@ function _main {
 # {{{ dig - Dig a new tomb
 function _dig {
 
-# Choose a tomb name, then type in the tomb's size in MiB and finally, dig the tomb.
-
     tombname=`zenity \
         --title="Choose where to dig your tomb" \
         --window-icon="monmort.png" \
@@ -268,7 +256,6 @@ function _dig {
             --error \
             --text="This tomb already exists. I'm not digging here."
             exec _main
-    d
     elif [[ $tombname == "" ]]; then
         zenity \
             --title="Warning" \
@@ -317,9 +304,12 @@ function _dig {
                             --pulsate &
 
                     PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
+
                     while [ "$PID_ZEN" != "" ]; do
                         PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
+
                         PID_DD=$(ps -C dd h -o pid,command | grep "$tombname" | awk '{print $1}')
+
                         sleep 1
                     done
 
@@ -543,16 +533,15 @@ function _open {
                         --info \
                         --text="Your tomb is now open."
 
-                    _main
-                    eval "_$command";;
+                    exec _main
+                    ;;
                 1)
-                    _main
-                    eval "_$command";;
+                    exec _main
+                    ;;
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -575,14 +564,10 @@ function _list {
 
     case $? in
         0)
-            _clean
-            _main
-            eval "_$command"
+            exec _main
             ;;
         1)
-            _clean
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -617,12 +602,10 @@ function _close {
                     --info \
                     --text="Closed successfully!"
 
-                _main
-                eval "_$command"
+                exec _main
                 ;;
             1)
-                _main
-                eval "_$command"
+                exec _main
                 ;;
         esac
 }
@@ -657,12 +640,10 @@ function _slam {
                     --info \
                     --text="Tomb slammed successfully!"
 
-                _main
-                eval "_$command"
+                exec _main
                 ;;
             1)
-                _main
-                eval "_$command"
+                exec _main
                 ;;
         esac
 }
@@ -703,24 +684,20 @@ function _resize {
                                 --info \
                                 --text="Tomb resized successfully"
 
-                            _main
-                            eval "_$command"
+                            exec _main
                             ;;
                         1)
-                            _main
-                            eval "_$command"
+                            exec _main
                             ;;
                     esac
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -745,12 +722,10 @@ function _passwd {
                 --info \
                 --text="Password successfully changed!"
 
-            _main
-            eval "_$command"
+            exec _main
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -798,24 +773,20 @@ function setkey {
                                 --info \
                                 --text="Tomb's keyfile successfully changed!"
 
-                            _main
-                            eval "_$command"
+                            exec _main
                             ;;
                         1)
-                            _main
-                            eval "_$command"
+                            exec _main
                             ;;
                     esac
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -847,18 +818,15 @@ function _engrave {
                         --info \
                         --text="QR code generated in $jpegfile"
 
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            eval "_$command"
+            exec _main
             ;;
     esac
 }
@@ -889,18 +857,15 @@ function bury {
 
                     _clean # Clean sensitive stuff from memory
 
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            "_$command"
+            exec _main
             ;;
     esac
 }
@@ -933,18 +898,15 @@ function exhume {
 
                     _clean # Clean sensitive stuff from memory
 
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
                 1)
-                    _main
-                    eval "_$command"
+                    exec _main
                     ;;
             esac
             ;;
         1)
-            _main
-            "_$command"
+            exec _main
             ;;
     esac
 }
