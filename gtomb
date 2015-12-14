@@ -17,6 +17,15 @@ function _ {
     # I like cleaning.
     _clean
 }
+# {{{ sudo function
+function _sudowrong {
+    if [[ $? == 1 ]]; then
+        sudoassword=$(ask_password "Wrong password. Insert sudo password for user $USER")
+        echo -e "$sudoassword\n" | sudo -S -v
+        _sudowrong
+    fi
+}
+# }}}
 
 # {{{ Some pinentry code shamelessly stolen from tomb
 # Ask user for a password
@@ -345,9 +354,9 @@ function _dig {
 
                     exec _main
                     ;;
-                1)
-                    exec _main
-                    ;;
+            1)
+                exec _main
+                ;;
             esac
             ;;
         1)
@@ -475,7 +484,10 @@ function _lock {
             case $res in
                 0)  
                     sudoassword=$(ask_password "Insert sudo password for user $USER")
-                    echo -e "$sudoassword\n" | sudo -S $TOMBPATH lock $tombname -k $keyfile | \
+                    echo -e "$sudoassword\n" | sudo -S -v
+                    _sudowrong
+
+                    sudo $TOMBPATH lock $tombname -k $keyfile | \
                         zenity \
                             --title="Locking your tomb..." \
                             --window-icon="monmort.png" \
@@ -513,17 +525,24 @@ function _open {
         --window-icon="monmort.png" \
         --file-selection`
 
-    case $? in
+    res=$?
+
+    case $res in
         0)
             keyfile=`zenity \
                 --title="Choose the key for your tomb" \
                 --window-icon="monmort.png" \
                 --file-selection`
 
-            case $? in
+            res=$?
+
+            case $res in
                 0)
                     sudoassword=$(ask_password "Insert sudo password for user $USER")
-                    echo -e "$sudoassword\n" | sudo -S $TOMBPATH open $tombname -k $keyfile
+                    echo -e "$sudoassword\n" | sudo -S -v
+                    _sudowrong
+
+                    sudo $TOMBPATH open $tombname -k $keyfile
 
                     _clean # Clean sensitive stuff from memory
 
@@ -562,7 +581,9 @@ function _list {
             --column=Tomb \
             --column=Path `
 
-    case $? in
+    res=$?
+
+    case $res in
         0)
             exec _main
             ;;
@@ -588,11 +609,15 @@ function _close {
             --column=Tomb \
             --column=Path `
 
-        case $? in
+        res=$?
+
+        case $res in
             0)
-                # Ask for sudo password via pinentry and remove pass from memory afterwards.
                 sudoassword=$(ask_password "Insert sudo password for user $USER")
-                echo -e "$sudoassword\n" | sudo -S $TOMBPATH close $tombname
+                echo -e "$sudoassword\n" | sudo -S -v
+                _sudowrong
+
+                sudo $TOMBPATH close $tombname
 
                 _clean # Clean sensitive stuff from memory
 
@@ -625,27 +650,31 @@ function _slam {
             --separator=" & " \
             --column=Tomb \
             --column=Path `
+            
+    res=$?
 
-        case $? in
-            0)
-                # Ask for sudo password via pinentry and remove pass from memory afterwards.
-                sudoassword=$(ask_password "Insert sudo password for user $USER")
-                echo -e "$sudoassword\n" | sudo -S $TOMBPATH slam $tombname
+    case $res in
+        0)
+            sudoassword=$(ask_password "Insert sudo password for user $USER")
+            echo -e "$sudoassword\n" | sudo -S -v
+            _sudowrong
 
-                _clean # Clean sensitive stuff from memory
+            sudo $TOMBPATH slam $tombname
 
-                zenity \
-                    --title="Success" \
-                    --window-icon="monmort.png" \
-                    --info \
-                    --text="Tomb slammed successfully!"
+            _clean # Clean sensitive stuff from memory
 
-                exec _main
-                ;;
-            1)
-                exec _main
-                ;;
-        esac
+            zenity \
+                --title="Success" \
+                --window-icon="monmort.png" \
+                --info \
+                --text="Tomb slammed successfully!"
+
+            exec _main
+            ;;
+        1)
+            exec _main
+            ;;
+    esac
 }
 # }}}
 
@@ -656,7 +685,9 @@ function _resize {
         --window-icon="monmort.png" \
         --file-selection`
 
-    case $? in
+    res=$?
+
+    case $res in
         0)
             tombsize=`zenity \
                 --title="New tomb size" \
@@ -664,17 +695,23 @@ function _resize {
                 --entry \
                 --text="Enter new size of your tomb in MiB. Must be larger than current value." \
                 --entry-text=100`
-            case $? in
+
+            res=$?
+            case $res in
                 0)
                     keyfile=`zenity \
                         --title="Choose according keyfile" \
                         --window-icon="monmort.png" \
                         --file-selection`
-                    case $? in
+
+                    res=$?
+                    case $res in
                         0)
                             sudoassword=$(ask_password "Insert sudo password for user $USER")
-                            echo -e "$sudoassword\n" | sudo -S $TOMBPATH resize \
-                                $tombname -s $tombsize -k $keyfile
+                            echo -e "$sudoassword\n" | sudo -S -v
+                            _sudowrong
+
+                            sudo $TOMBPATH resize $tombname -s $tombsize -k $keyfile
 
                             _clean # Clean sensitive stuff from memory
 
@@ -710,7 +747,8 @@ function _passwd {
         --window-icon="monmort.png" \
         --file-selection` 
 
-    case $? in
+    res=$?
+    case $res in
         0)
             $TOMBPATH passwd -k $keyfile
             
@@ -738,25 +776,30 @@ function setkey {
         --window-icon="monmort.png" \
         --file-selection`
 
-    case $? in
+    res=$?
+    case $res in
         0)
             keyfile=`zenity \
                 --title="Choose your tomb's old keyfile" \
                 --window-icon="monmort.png" \
                 --file-selection`
 
-            case $? in
+            res=$?
+            case $res in
                 0)
                     newkey=`zenity \
                         --title="Choose your tomb's new keyfile" \
                         --window-icon="monmort.png" \
                         --file-selection`
 
-                    case $? in
+                    res=$?
+                    case $res in
                         0)
                             sudoassword=$(ask_password "Insert sudo password for $USER")
-                            echo -e "$sudoassword\n" | sudo -S $TOMBPATH setkey \
-                                -k $newkey $keyfile $tombname | \
+                            echo -e "$sudoassword\n" | sudo -S -v
+                            _sudowrong
+
+                            sudo $TOMBPATH setkey -k $newkey $keyfile $tombname | \
                                 zenity \
                                     --title="Changing key"
                                     --window-icon="monmort.png" \
@@ -799,7 +842,8 @@ function _engrave {
         --window-icon="monmort.png" \
         --file-selection`
 
-    case $? in
+    res=$?
+    case $res in
         0)
             jpegfile=`zenity \
                 --title="Choose where to save keyfile (PNG format)" \
@@ -807,7 +851,8 @@ function _engrave {
                 --file-selection \
                 --save`
             
-            case $? in
+            res=$?
+            case $res in
                 0)
                     awk '/^-----/ {next}; /^Version/ {next}; {print $0}' $keyfile \
                         | qrencode --size 4 --level H --casesensitive -o $jpegfile
@@ -839,14 +884,16 @@ function bury {
         --window-icon="monmort.png" \
         --file-selection`
 
-    case $? in
+    res=$?
+    case $res in
         0)
             jpegfile=`zenity \
                 --title="Choose JPEG file" \
                 --window-icon="monmort.png" \
                 --file-selection`
 
-            case $? in
+            res=$?
+            case $res in
                 0)
                     $TOMBPATH bury -k $keyfile $jpegfile
                     zenity \
@@ -878,7 +925,8 @@ function exhume {
         --window-icon="monmort.png" \
         --file-selection`
 
-    case $? in
+    res=$?
+    case $res in
         0)
             keyfile=`zenity \
                 --title="Choose where to extract your key" \
@@ -886,7 +934,8 @@ function exhume {
                 --file-selection \
                 --save`
 
-            case $? in
+            res=$?
+            case $res in
                 0)
                     $TOMBPATH exhume -k $keyfile $jpegfile
 
