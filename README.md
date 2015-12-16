@@ -18,8 +18,7 @@ list and the script will run it for you. Easy-peasy.
 * zenity
 
 ## TODO
-* Error checking!
-* Embed icon into script
+* Complete error checking
 * Figure out why ps fails sometimes
 * and more stuff 
 
