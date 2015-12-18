@@ -394,8 +394,6 @@ function _dig {
 # }}}
 
 # {{{ forge - Forge a new key
-
-# Select new key's path, forge the key and create its passphrase.
 function _forge {
     keyfile=`_fsave "Choose where to forge your key" "secret.tomb.key"`
     
@@ -561,16 +559,16 @@ function _list {
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
 
-                    sudo tomb close $tombname
+                    sudo $TOMBPATH close $tombname
                     _zeninfo "Success" "Tomb closed successfully!"
                     exec _main
                     ;;
-               slam)
+                slam)
                     sudoassword=$(ask_password "Insert sudo password for user $USER") 
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
 
-                    sudo tomb slam $tombname
+                    sudo $TOMBPATH slam $tombname
                     _zeninfo "Success" "Tomb slammed successfully!"
                     exec _main
                     ;;
