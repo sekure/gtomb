@@ -14,7 +14,7 @@ ver="0.6.1"
 TOMBPATH="/usr/bin/tomb" # Set this to your tomb executable's path
 
 # {{{ monmort icon
-MONMORT=`mktemp`
+MONMORT=/tmp/monmort.png
 ICONB64="iVBORw0KGgoAAAANSUhEUgAAACAAAAAgEAQAAACJ4248AAAAAmJLR0T//xSrMc0AAAAJcEhZcwAA\n
 AEgAAABIAEbJaz4AAAAJdnBBZwAAACAAAAAgAIf6nJ0AAADrSURBVFjD5ZZBEsMgCEU/TO/l2XMx\n
 04VjQ1K1CDYswkwWJnH+E/EL4RP7jluDCACoim/bvfIpFQiKEJcQHCN9xEtLCgDMQM7f33sZrPNG\n

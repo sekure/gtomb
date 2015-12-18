@@ -21,7 +21,6 @@ list and the script will run it for you. Easy-peasy.
 * Complete error checking
 * Figure out why ps fails sometimes
 * index and search
-* keep icon from spamming up /tmp
 * and more stuff 
 
 ## What you need to do
