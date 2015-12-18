@@ -547,7 +547,7 @@ function _list {
                 --column=Command \
                 --column=Description \
                 "close" "Close the selected tomb." \
-                "resize" "Resize the selected tomb."`
+                "slam" "Slam the selected tomb."`
 
             if [[ $? == 1 ]]; then
                 exec _main
@@ -563,6 +563,16 @@ function _list {
                     _zeninfo "Success" "Tomb closed successfully!"
                     exec _main
                     ;;
+               slam)
+                    sudoassword=$(ask_password "Insert sudo password for user $USER") 
+                    echo -e "$sudoassword\n" | sudo -S -v
+                    _sudowrong
+
+                    sudo tomb slam $tombname
+                    _zeninfo "Success" "Tomb slammed successfully!"
+                    exec _main
+                    ;;
+  
                 # See what else to add
             esac
             ;;
