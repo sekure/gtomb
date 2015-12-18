@@ -538,7 +538,33 @@ function _list {
     res=$?
     case $res in
         0)
-            exec _main
+            listchoice=`zenity \
+                --title="Choose action" \
+                --window-icon="$MONMORT" \
+                --width=640 --height=200 --list \
+                --separator=" & " \
+                --text="What do you want to do with this tomb?" \
+                --column=Command \
+                --column=Description \
+                "close" "Close the selected tomb." \
+                "resize" "Resize the selected tomb."`
+
+            if [[ $? == 1 ]]; then
+                exec _main
+            fi
+
+            case $listchoice in
+                close)
+                    sudoassword=$(ask_password "Insert sudo password for user $USER") 
+                    echo -e "$sudoassword\n" | sudo -S -v
+                    _sudowrong
+
+                    sudo tomb close $tombname
+                    _zeninfo "Success" "Tomb closed successfully!"
+                    exec _main
+                    ;;
+                # See what else to add
+            esac
             ;;
         1)
             exec _main
