@@ -10,8 +10,9 @@
 # intended and should be used with caution.
 #
 
-ver="0.6"
+ver="0.6.1"
 TOMBPATH="/usr/local/bin/tomb" # Set this to your tomb executable's path
+
 # {{{ monmort icon
 MONMORT=`mktemp`
 ICONB64="iVBORw0KGgoAAAANSUhEUgAAACAAAAAgEAQAAACJ4248AAAAAmJLR0T//xSrMc0AAAAJcEhZcwAA\n
@@ -26,6 +27,7 @@ echo -e "$ICONB64" | base64 --decode > $MONMORT
 # }}}
 
 function _ { _clean } # I like cleaning :)
+
 # {{{ sudo function
 function _sudowrong {
     if [[ $? == 1 ]]; then
@@ -857,4 +859,8 @@ function _exhume {
 }
 # }}}
 
-_main
+if [ ! -f $TOMBPATH ]; then
+    _zenwarn "Warning" "Tomb binary is nonexistent in the current path. Install it or edit the script to point to the correct path."
+else
+    _main
+fi
