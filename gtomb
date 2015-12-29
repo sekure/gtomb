@@ -925,6 +925,11 @@ function _index {
 }
 # }}}
 
+# {{{ search - searches the contents of indexed tombs
+    _zeninfo "Sorry" "Not implemented yet."
+    exec _main
+# }}}
+
 if [ ! -f $TOMBPATH ]; then
     _zenwarn "Warning" "Tomb binary is nonexistent in the current path. Install it or edit the script to point to the correct path."
 else
