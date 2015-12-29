@@ -586,7 +586,7 @@ function _list {
             listchoice=`zenity \
                 --title="Choose action" \
                 --window-icon="$MONMORT" \
-                --width=640 --height=200 --list \
+                --width=640 --height=400 --list \
                 --separator=" & " \
                 --text="What do you want to do with this tomb?" \
                 --column=Command \
