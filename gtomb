@@ -28,6 +28,8 @@
 #
 # }}}
 
+#set -x
+#set -v
 ver="0.6.2"
 TOMBPATH="/usr/bin/tomb" # Set this to your tomb executable's path
 KDFPATH="/usr/bin/" # Set this to the path of your KDF binaries (if you're using them)
@@ -38,7 +40,7 @@ GETITER="$KDFPATH/tomb-kdb-pbkdf2-getiter"
 PBKDF="$KDFPATH/tomb-kdb-pbkdf2"
 
 # {{{ monmort icon
-MONMORT=/tmp/monmort.png
+MONMORT="/tmp/monmort.png"
 ICONB64="iVBORw0KGgoAAAANSUhEUgAAACAAAAAgEAQAAACJ4248AAAAAmJLR0T//xSrMc0AAAAJcEhZcwAA\n
 AEgAAABIAEbJaz4AAAAJdnBBZwAAACAAAAAgAIf6nJ0AAADrSURBVFjD5ZZBEsMgCEU/TO/l2XMx\n
 04VjQ1K1CDYswkwWJnH+E/EL4RP7jluDCACoim/bvfIpFQiKEJcQHCN9xEtLCgDMQM7f33sZrPNG\n
@@ -510,7 +512,7 @@ function _lock {
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
 
-                    sudo $TOMBPATH lock $tombname -k $keyfile | \
+                    $TOMBPATH lock $tombname -k $keyfile | \
                         _zenprognc "Locking your tomb" "Please wait while your tomb is being locked..."
                     
                     _clean # Clean sensitive stuff from memory
@@ -545,7 +547,7 @@ function _open {
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
 
-                    sudo $TOMBPATH open $tombname -k $keyfile
+                    $TOMBPATH open $tombname -k $keyfile
 
                     _clean # Clean sensitive stuff from memory
                     _zeninfo "Success" "Your tomb is now open."
@@ -589,10 +591,12 @@ function _list {
                 --text="What do you want to do with this tomb?" \
                 --column=Command \
                 --column=Description \
-                "disindex" "Disable indexing of this tomb."
-                "enindex" "Enable indexing of this tomb."
+                "disindex" "Disable indexing of this tomb." \
+                "enindex" "Enable indexing of this tomb."   \
                 "close" "Close the selected tomb." \
-                "slam" "Slam the selected tomb."`
+                "slam" "Slam the selected tomb." \
+                "binds" "Edit current bind-hooks." \
+                "posts" "Edit current post-hooks."`
 
             if [[ $? == 1 ]]; then
                 exec _main
@@ -604,7 +608,7 @@ function _list {
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
 
-                    sudo $TOMBPATH close $tombname
+                    $TOMBPATH close $tombname
                     _zeninfo "Success" "Tomb closed successfully!"
                     exec _main
                     ;;
@@ -613,20 +617,44 @@ function _list {
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
 
-                    sudo $TOMBPATH slam $tombname
+                    $TOMBPATH slam $tombname
                     _zeninfo "Success" "Tomb slammed successfully!"
                     exec _main
                     ;;
                 disindex)
-                    tombloc=`tomb list $tombname --get-mountpoint`
+                    tombloc=`$TOMBPATH list $tombname --get-mountpoint`
                     touch "$tombloc/.noindex"
                     _zeninfo "Success" "Indexing disabled for this tomb."
                     exec _main
                     ;;
                 enindex)
-                    tombloc=`tomb list $tombname --get-mountpoint`
+                    tombloc=`$TOMBPATH list $tombname --get-mountpoint`
                     rm "$tombloc/.noindex"
                     _zeninfo "Success" "Indexing of this tomb is enabled."
+                    exec _main
+                    ;;
+                binds)
+                    tombloc=`$TOMBPATH list $tombname --get-mountpoint` 
+                    bindhooks=`zenity \
+                        --text-info \
+                        --filename="$tombloc/bind-hooks" \
+                        --editable`
+                    if [[ $? == "0" ]]; then
+                        echo "$bindhooks" > "$tombloc/bind-hooks"
+                    fi
+                    exec _main
+                    ;;
+                posts)
+                    tombloc=`$TOMBPATH list $tombname --get-mountpoint`
+                    
+                    posthooks=`zenity \
+                        --text-info \
+                        --filename="$tombloc/post-hooks" \
+                        --editable`
+                    if [[ $? == "0" ]]; then
+                        echo "$posthooks" > "$tombloc/post-hooks"
+                        chmod +x $tombloc/post-hooks
+                    fi
                     exec _main
                     ;;
   
@@ -662,7 +690,7 @@ function _close {
                 echo -e "$sudoassword\n" | sudo -S -v
                 _sudowrong
 
-                sudo $TOMBPATH close $tombname
+                $TOMBPATH close $tombname
 
                 _clean # Clean sensitive stuff from memory
                 _zeninfo "Success" "Tomb(s) closed successfully!"
@@ -697,7 +725,7 @@ function _slam {
             echo -e "$sudoassword\n" | sudo -S -v
             _sudowrong
 
-            sudo $TOMBPATH slam $tombname
+            $TOMBPATH slam $tombname
 
             _clean # Clean sensitive stuff from memory
             _zeninfo "Success" "Tomb(s) slammed successfully!"
@@ -731,7 +759,7 @@ function _resize {
                             echo -e "$sudoassword\n" | sudo -S -v
                             _sudowrong
 
-                            sudo $TOMBPATH resize $tombname -s $tombsize -k $keyfile | \
+                            $TOMBPATH resize $tombname -s $tombsize -k $keyfile | \
                                 _zenprognc "Resizing tomb." "Please wait while your tomb is being resized..."
 
                             _clean # Clean sensitive stuff from memory
@@ -797,7 +825,7 @@ function _setkey {
                             echo -e "$sudoassword\n" | sudo -S -v
                             _sudowrong
 
-                            sudo $TOMBPATH setkey -k $newkey $keyfile $tombname | \
+                            $TOMBPATH setkey -k $newkey $keyfile $tombname | \
                                 _zenprognc "Changing key" "Please wait while your tomb's key is being changed..."
 
                             _clean
