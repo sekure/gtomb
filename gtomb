@@ -926,8 +926,28 @@ function _index {
 # }}}
 
 # {{{ search - searches the contents of indexed tombs
-    _zeninfo "Sorry" "Not implemented yet."
-    exec _main
+function _search {
+    strings=""
+
+    function _searchstring {
+        srchstring=`_zenentry "Search" "Enter an argument to search. Cancel to finish."`
+        res=$?
+        strings="$strings $srchstring"
+        
+        if [[ $res == "1" ]]; then
+            tombtmp="/tmp/tombtmp"
+            $TOMBPATH search $strings > $tombtmp
+            #cat $tombtmp | \
+                zenity \
+                    --text-info \
+                    --title="Search results" \
+                    --filename=$tombtmp
+        else
+            _searchstring
+        fi
+    }
+    _searchstring
+}
 # }}}
 
 if [ ! -f $TOMBPATH ]; then
