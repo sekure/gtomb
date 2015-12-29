@@ -340,6 +340,8 @@ function _main {
         "forge" "Forge a new key used to lock tombs" \
         "lock" "Lock a non-locked tomb using an existing key" \
         "open" "Open an existing tomb" \
+        "index" "Index the contents of all tombs." \
+        "search" "Search the content of indexed tombs." \
         "list" "List all open tombs and information on them" \
         "close" "Close a specific tomb (or all)" \
         "slam" "Slam a tomb (or all) killing all programs using it" \
@@ -587,6 +589,8 @@ function _list {
                 --text="What do you want to do with this tomb?" \
                 --column=Command \
                 --column=Description \
+                "disindex" "Disable indexing of this tomb."
+                "enindex" "Enable indexing of this tomb."
                 "close" "Close the selected tomb." \
                 "slam" "Slam the selected tomb."`
 
@@ -611,6 +615,18 @@ function _list {
 
                     sudo $TOMBPATH slam $tombname
                     _zeninfo "Success" "Tomb slammed successfully!"
+                    exec _main
+                    ;;
+                disindex)
+                    tombloc=`tomb list $tombname --get-mountpoint`
+                    touch "$tombloc/.noindex"
+                    _zeninfo "Success" "Indexing disabled for this tomb."
+                    exec _main
+                    ;;
+                enindex)
+                    tombloc=`tomb list $tombname --get-mountpoint`
+                    rm "$tombloc/.noindex"
+                    _zeninfo "Success" "Indexing of this tomb is enabled."
                     exec _main
                     ;;
   
@@ -895,6 +911,17 @@ function _exhume {
             exec _main
             ;;
     esac
+}
+# }}}
+
+# {{{ index - index the contents of open tombs
+function _index {
+    which mlocate || _zenwarn "Warning" "mlocate is not installed. Install it and try again" && exec _main
+
+    $TOMBPATH index | _zenprognc "Indexing" "Please wait while the open tombs are being indexed..."
+    _zeninfo "Success" "Tombs indexed!"
+    
+    exec _main
 }
 # }}}
 
