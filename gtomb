@@ -26,9 +26,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/
 #
+# }}}
 
-ver="0.6.1"
+ver="0.6.2"
 TOMBPATH="/usr/bin/tomb" # Set this to your tomb executable's path
+KDFPATH="/usr/bin/" # Set this to the path of your KDF binaries (if you're using them)
+# The ones below should not need changing
+HEXENC="$KDFPATH/tomb-kdb-hexencode"
+GENSALT="$KDFPATH/tomb-kdb-pbkdf2-gensalt"
+GETITER="$KDFPATH/tomb-kdb-pbkdf2-getiter"
+PBKDF="$KDFPATH/tomb-kdb-pbkdf2"
 
 # {{{ monmort icon
 MONMORT=/tmp/monmort.png
@@ -56,6 +63,13 @@ function _sudowrong {
 # }}}
 
 # {{{ Zenity dialogs
+function _zenques {
+    zenity \
+        --window-icon="$MONMORT" \
+        --question \
+        --text="$1"
+}
+
 function _fsel {
     zenity \
         --window-icon="$MONMORT" \
@@ -424,9 +438,19 @@ function _forge {
         exec _main
     fi
 
+    if [[ -f $HEXENC ]] && [[ -f $GENSALT ]] && [[ -f $GETITER ]] && [[ -f $PBKDF ]]; then
+        kdf=""
+        kdfiter=""
+        _zenques "Do you want to use KDF? (Generates passwords armored against dictionary attacks)" 
+        if [[ $? == "0" ]]; then
+            kdf="--kdf"
+            kdfiter=`_zenentry "Iterations" "Enter the delay (itertime) in seconds for each time this key is used:" "2"`
+        fi
+    fi
+
     case $res in
         0)
-            $TOMBPATH forge $keyfile | \
+            $TOMBPATH forge $keyfile $kdf $kdfiter | \
                 _zenprog "Forging key" "Please wait while your key is being forged...\n\
 You can move your mouse around and use your computer to speed up the process." &
 
