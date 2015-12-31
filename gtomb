@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
-#
+
 # gtomb - a GUI wrapper for Tomb 
-# 
+#
 # Maintained and written by parazyd <parazyd AT dyne DOT org>
 # https://github.com/parazyd/gtomb
 # https://github.com/dyne/Tomb
@@ -11,7 +11,7 @@
 #
 # {{{ License
 # gtomb - A GUI wrapper for Tomb, the crypto undertaker
-# Copyright (C) 2015 Parazyd <parazyd AT dyne DOT org>
+# Copyright (C) 2015-2016 Parazyd <parazyd AT dyne DOT org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,9 +28,7 @@
 #
 # }}}
 
-#set -x
-#set -v
-ver="0.6.2"
+ver="0.7"
 TOMBPATH="/usr/bin/tomb" # Set this to your tomb executable's path
 KDFPATH="/usr/bin/" # Set this to the path of your KDF binaries (if you're using them)
 # The ones below should not need changing
@@ -71,7 +69,6 @@ function _zenques {
         --question \
         --text="$1"
 }
-
 function _fsel {
     zenity \
         --window-icon="$MONMORT" \
@@ -141,7 +138,6 @@ function _zenentry {
 # Wraps around the pinentry command, from the GnuPG project, as it
 # provides better security and conveniently use the right toolkit.
 ask_password() {
-
     local description="$1"
     local title="${2:-Enter tomb password.}"
     local output
@@ -442,13 +438,14 @@ function _forge {
         exec _main
     fi
 
+    kdf=""
+    kdfiter=""
     if [[ -f $HEXENC ]] && [[ -f $GENSALT ]] && [[ -f $GETITER ]] && [[ -f $PBKDF ]]; then
-        kdf=""
-        kdfiter=""
         _zenques "Do you want to use KDF? (Generates passwords armored against dictionary attacks)" 
         if [[ $? == "0" ]]; then
             kdf="--kdf"
-            kdfiter=`_zenentry "Iterations" "Enter the delay (itertime) in seconds for each time this key is used:" "2"`
+            kdfiter=`_zenentry "Iterations" "Enter the delay (itertime) in seconds for each time \n\
+this key is used:" "2"`
         fi
     fi
 
@@ -515,7 +512,7 @@ function _lock {
                     $TOMBPATH lock $tombname -k $keyfile | \
                         _zenprognc "Locking your tomb" "Please wait while your tomb is being locked..."
                     
-                    _clean # Clean sensitive stuff from memory
+                    _clean
                     _zeninfo "Success" "Your tomb is now locked."
                     exec _main
                     ;;
@@ -549,7 +546,7 @@ function _open {
 
                     $TOMBPATH open $tombname -k $keyfile
 
-                    _clean # Clean sensitive stuff from memory
+                    _clean
                     _zeninfo "Success" "Your tomb is now open."
                     exec _main
                     ;;
@@ -580,6 +577,7 @@ function _list {
             --column=Tomb \
             --column=Path `
 
+    tombname=`echo $tombname | cut -c1-16`
     res=$?
     case $res in
         0)
@@ -607,7 +605,7 @@ function _list {
                     sudoassword=$(ask_password "Insert sudo password for user $USER") 
                     echo -e "$sudoassword\n" | sudo -S -v
                     _sudowrong
-
+                    
                     $TOMBPATH close $tombname
                     _zeninfo "Success" "Tomb closed successfully!"
                     exec _main
@@ -646,14 +644,13 @@ function _list {
                     ;;
                 posts)
                     tombloc=`$TOMBPATH list $tombname --get-mountpoint`
-                    
                     posthooks=`zenity \
                         --text-info \
                         --filename="$tombloc/post-hooks" \
                         --editable`
                     if [[ $? == "0" ]]; then
                         echo "$posthooks" > "$tombloc/post-hooks"
-                        chmod +x $tombloc/post-hooks
+                        chmod +x "$tombloc/post-hooks"
                     fi
                     exec _main
                     ;;
@@ -690,6 +687,7 @@ function _close {
                 echo -e "$sudoassword\n" | sudo -S -v
                 _sudowrong
 
+                tombname=`echo $tombname | cut -c1-16`
                 $TOMBPATH close $tombname
 
                 _clean # Clean sensitive stuff from memory
@@ -725,6 +723,7 @@ function _slam {
             echo -e "$sudoassword\n" | sudo -S -v
             _sudowrong
 
+            tombname=`echo $tombname | cut -c1-16`
             $TOMBPATH slam $tombname
 
             _clean # Clean sensitive stuff from memory
@@ -793,7 +792,7 @@ function _passwd {
             $TOMBPATH passwd -k $keyfile | \
                 _zenprognc "Changing passphrase" "Please wait while your key's passphrase is being changed..."
             
-            _clean # Clean sensitive stuff from memory
+            _clean
             _zeninfo "Success" "Passphrase changed successfully!"
             exec _main
             ;;
@@ -965,9 +964,9 @@ function _search {
         if [[ $res == "1" ]]; then
             tombtmp="/tmp/tombtmp"
             $TOMBPATH search $strings > $tombtmp
-            #cat $tombtmp | \
                 zenity \
                     --text-info \
+                    --width=640 --height=640 \
                     --title="Search results" \
                     --filename=$tombtmp
         else
@@ -975,6 +974,8 @@ function _search {
         fi
     }
     _searchstring
+    
+    exec _main
 }
 # }}}
 
