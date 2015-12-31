@@ -1,13 +1,12 @@
 #!/usr/bin/env zsh
-
+#
 # gtomb - a GUI wrapper for Tomb 
 #
 # Maintained and written by parazyd <parazyd AT dyne DOT org>
 # https://github.com/parazyd/gtomb
 # https://github.com/dyne/Tomb
 #
-# gtomb is experimental software. It still does not work completely as 
-# intended and should be used with caution.
+# gtomb is experimental software.
 #
 # {{{ License
 # gtomb - A GUI wrapper for Tomb, the crypto undertaker
@@ -28,7 +27,7 @@
 #
 # }}}
 
-ver="0.7"
+ver="0.7.1"
 TOMBPATH="/usr/bin/tomb" # Set this to your tomb executable's path
 KDFPATH="/usr/bin/" # Set this to the path of your KDF binaries (if you're using them)
 # The ones below should not need changing
@@ -36,6 +35,8 @@ HEXENC="$KDFPATH/tomb-kdb-hexencode"
 GENSALT="$KDFPATH/tomb-kdb-pbkdf2-gensalt"
 GETITER="$KDFPATH/tomb-kdb-pbkdf2-getiter"
 PBKDF="$KDFPATH/tomb-kdb-pbkdf2"
+_DD=dcfldd
+which dcfldd > /dev/null || _DD=dd
 
 # {{{ monmort icon
 MONMORT="/tmp/monmort.png"
@@ -50,9 +51,13 @@ b2RpZnkAMjAxMS0wMS0xMlQwOTozNDoyNCswMTowMNKiZVMAAAAASUVORK5CYII="
 echo -e "$ICONB64" | base64 --decode > $MONMORT
 # }}}
 
-function _ { _clean } # I like cleaning :)
 
-# {{{ sudo function
+# {{{ sudo functions
+function _sudo {
+    sudoassword=$(ask_password "Insert sudo password for user $USER")
+    echo -e "$sudoassword\n" | sudo -S -v
+    _sudowrong
+}
 function _sudowrong {
     if [[ $? == 1 ]]; then
         sudoassword=$(ask_password "Wrong password. Insert sudo password for user $USER")
@@ -87,6 +92,21 @@ function _zenwarn {
     zenity \
         --window-icon="$MONMORT" \
         --warning \
+        --title="$1" \
+        --text="$2"
+}
+function _info {
+    which notify-send > /dev/null
+    if [[ $? == "0" ]]; then
+        _zenotif $*
+    else
+        _zeninfo $*
+    fi
+}
+function _zenotif {
+    zenity \
+        --window-icon="$MONMORT" \
+        --notification \
         --title="$1" \
         --text="$2"
 }
@@ -295,8 +315,6 @@ function _failure die() {
 
 # {{{ _clean - Clean function, removes sensitive stuff from memory
 function _clean {
-    
-    echo "Cleaning..." # For debugging.
     unset $?
     local rr="$RANDOM"
     while [[ ${#rr} -lt 500 ]]; do
@@ -308,9 +326,8 @@ function _clean {
     tombsize="$rr";     unset tombsize
     keyfile="$rr";      unset keyfile
     sudoassword="$rr";  unset sudoassword
-    tombtmp=/tmp/tombtmp
-    if [ -f $tombtmp ]
-    then
+    tombtmp="/tmp/tombtmp"
+    if [ -f $tombtmp ]; then
         dd if=/dev/urandom of=$tombtmp bs=800 count=1
         rm -f $tombtmp
     fi
@@ -349,30 +366,26 @@ function _main {
         "engrave" "Generates a QR code of a key to be saved on paper" \
         "bury" "Hide a key inside a JPEG image" \
         "exhume" "Extract a key from a JPEG image"`
-
     eval "_$command"
 }
 # }}}
 
 # {{{ dig - Dig a new tomb
 function _dig {
-
     tombname=`_fsave "Choose where to dig your tomb" "secret.tomb"`
-
     res=$?
 
-    if [[ -f $tombname ]]; then
+    if [[ -f "$tombname" ]]; then
         _zenerr "Error" "This tomb already exists. I am not digging here."
         exec _main
-    elif [[ $tombname == "" ]]; then
-        _zenwarn "Warning" "Try again."
+    elif [[ "$tombname" == "" ]]; then
+        _info "gtomb" "Cancelled"
         exec _main
     fi
 
     case $res in
         0)
             tombsize=`_zenentry "Tomb digging" "Enter the size of your tomb in MiB (min. 10 MiB)" "10"`
-
             res=$?
 
             re='^[0-9]+$'
@@ -380,36 +393,33 @@ function _dig {
                 _zenerr "Error" "Please choose a valid number."
                 exec _main
             elif [[ $tombsize == "" ]]; then
-                _zenwarn "Warning" "Try again."
+                _info "gtomb" "Cancelled"
                 exec _main
             fi
 
             case $res in
                 0)
-                    $TOMBPATH dig -s $tombsize $tombname | \
+                    "$TOMBPATH" dig -s "$tombsize" "$tombname" | \
                         _zenprog "Digging new tomb" "Please wait while your tomb is being dug..." &
 
                     PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
-
                     while [ "$PID_ZEN" != "" ]; do
                         PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
-                        PID_DD=$(ps -C dd h -o pid,command | grep "$tombname" | awk '{print $1}')
+                        PID_DD=$(ps -C $_DD h -o pid,command | grep "$tombname" | awk '{print $1}')
                         sleep 1
                     done
-
                     if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
                         kill -9 $PID_DD
-                        _zenwarn "Warning" "Tomb digging canceled."
-                        rm -f $tombname
+                        _zenwarn "Warning" "Tomb digging cancelled."
+                        rm -f "$tombname"
                         exec _main
                     fi
 
-                    _clean
-                    _zeninfo "Success" "Your tomb has been dug."
+                    _info "Success" "Your tomb has been dug in $tombname"
                     exec _main
                     ;;
                 1)
-                    _zenwarn "Warning" "Tomb digging canceled."
+                    _zenwarn "Warning" "Tomb digging cancelled."
                     exec _main
                     ;;
             1)
@@ -427,14 +437,13 @@ function _dig {
 # {{{ forge - Forge a new key
 function _forge {
     keyfile=`_fsave "Choose where to forge your key" "secret.tomb.key"`
-    
     res=$?
 
     if [[ -f $keyfile ]]; then
         _zenerr "Error" "This key already exists. I am not overwriting."
         exec _main
     elif [[ $keyfile == "" ]]; then
-        _zenwarn "Warning" "Try again."
+        _info "gtomb" "Cancelled"
         exec _main
     fi
 
@@ -446,32 +455,39 @@ function _forge {
             kdf="--kdf"
             kdfiter=`_zenentry "Iterations" "Enter the delay (itertime) in seconds for each time \n\
 this key is used:" "2"`
+            re='^[0-9]+$'
+            if ! [[ $kdfiter =~ $re ]]; then
+                _zenerr "Error" "Please choose a valid number."
+                exec _main
+            elif [[ $kdfiter == "" ]]; then
+                _info "gtomb" "Cancelled"
+                exec _main
+            fi
         fi
+    else
+        _zenotif "gtomb" "KDF binaries not found."
     fi
 
     case $res in
         0)
-            $TOMBPATH forge $keyfile $kdf $kdfiter | \
+            "$TOMBPATH" forge "$keyfile" "$kdf" "$kdfiter" | \
                 _zenprog "Forging key" "Please wait while your key is being forged...\n\
 You can move your mouse around and use your computer to speed up the process." &
 
             PID_ZEN=$(ps -C zenity h -o pid,command | grep "Forging key" | awk '{print $1}')
-
             while [ "$PID_ZEN" != "" ]; do
                 PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
-                PID_DD=$(ps -C dd h -o pid,command | grep " if=" | awk '{print $1}')
+                PID_DD=$(ps -C $_DD h -o pid,command | grep " if=" | awk '{print $1}')
                 sleep 1
             done
-
             if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
                 kill -9 $PID_DD
-                _zenwarn "Warning" "Forging canceled."
+                _zenwarn "Warning" "Forging cancelled."
                 rm -f $keyfile
                 exec _main
             fi
 
-            _clean
-            _zeninfo "Success" "Your key is now forged."
+            _info "Success" "Your key is now forged in $keyfile"
             exec _main
             ;;
         1)
@@ -484,36 +500,29 @@ You can move your mouse around and use your computer to speed up the process." &
 # {{{ lock - Lock a non-locked tomb
 function _lock {
     tombname=`_fsel "Select a tomb to lock"`
-
     res=$?
     
     if [[ $tombname == "" ]]; then
-        _zenwarn "Warning" "Try again."
+        _zenotif "gtomb" "Cancelled"
         exec _main
     fi
     
     case $res in
         0)
             keyfile=`_fsel "Choose the key for your tomb"`
-
             res=$?
 
             if [[ $keyfile == "" ]]; then
-                _zenwarn "Warning" "Try again."
+                _zenotif "gtomb" "Cancelled"
                 exec _main
             fi
 
             case $res in
                 0)  
-                    sudoassword=$(ask_password "Insert sudo password for user $USER")
-                    echo -e "$sudoassword\n" | sudo -S -v
-                    _sudowrong
-
-                    $TOMBPATH lock $tombname -k $keyfile | \
+                    _sudo
+                    "$TOMBPATH" lock "$tombname" -k "$keyfile" | \
                         _zenprognc "Locking your tomb" "Please wait while your tomb is being locked..."
-                    
-                    _clean
-                    _zeninfo "Success" "Your tomb is now locked."
+                    _info "Success" "Your tomb is now locked."
                     exec _main
                     ;;
                 1)
@@ -531,23 +540,16 @@ function _lock {
 # {{{ open - Open an existing tomb
 function _open {
     tombname=`_fsel "Choose a tomb to open"`
-
     res=$?
     case $res in
         0)
             keyfile=`_fsel "Choose the key for your tomb"`
-
             res=$?
             case $res in
                 0)
-                    sudoassword=$(ask_password "Insert sudo password for user $USER")
-                    echo -e "$sudoassword\n" | sudo -S -v
-                    _sudowrong
-
-                    $TOMBPATH open $tombname -k $keyfile
-
-                    _clean
-                    _zeninfo "Success" "Your tomb is now open."
+                    _sudo
+                    "$TOMBPATH" open "$tombname" -k "$keyfile"
+                    _info "Success" "Your tomb is now open."
                     exec _main
                     ;;
                 1)
@@ -565,7 +567,7 @@ function _open {
 # {{{ list - list all open tombs, along with their mountpoint
 function _list {
     tombtmp="/tmp/tombtmp"
-    $TOMBPATH list --get-mountpoint > $tombtmp
+    "$TOMBPATH" list --get-mountpoint > $tombtmp
     tombname=`cat $tombtmp | \
         sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
         zenity \
@@ -577,8 +579,8 @@ function _list {
             --column=Tomb \
             --column=Path `
 
-    tombname=`echo $tombname | cut -c1-16`
     res=$?
+    tombname=`echo "$tombname" | cut -c1-16`
     case $res in
         0)
             listchoice=`zenity \
@@ -602,48 +604,43 @@ function _list {
 
             case $listchoice in
                 close)
-                    sudoassword=$(ask_password "Insert sudo password for user $USER") 
-                    echo -e "$sudoassword\n" | sudo -S -v
-                    _sudowrong
-                    
-                    $TOMBPATH close $tombname
+                    _sudo
+                    "$TOMBPATH" close "$tombname"
                     _zeninfo "Success" "Tomb closed successfully!"
                     exec _main
                     ;;
                 slam)
-                    sudoassword=$(ask_password "Insert sudo password for user $USER") 
-                    echo -e "$sudoassword\n" | sudo -S -v
-                    _sudowrong
-
-                    $TOMBPATH slam $tombname
-                    _zeninfo "Success" "Tomb slammed successfully!"
+                    _sudo
+                    "$TOMBPATH" slam "$tombname"
+                    _info "Success" "$tombname slammed successfully!"
                     exec _main
                     ;;
                 disindex)
-                    tombloc=`$TOMBPATH list $tombname --get-mountpoint`
+                    tombloc=`"$TOMBPATH" list "$tombname" --get-mountpoint`
                     touch "$tombloc/.noindex"
-                    _zeninfo "Success" "Indexing disabled for this tomb."
+                    _info "Success" "Indexing disabled for this tomb."
                     exec _main
                     ;;
                 enindex)
-                    tombloc=`$TOMBPATH list $tombname --get-mountpoint`
-                    rm "$tombloc/.noindex"
-                    _zeninfo "Success" "Indexing of this tomb is enabled."
+                    tombloc=`"$TOMBPATH" list "$tombname" --get-mountpoint`
+                    rm -f "$tombloc/.noindex"
+                    _info "Success" "Indexing of this tomb is now enabled."
                     exec _main
                     ;;
                 binds)
-                    tombloc=`$TOMBPATH list $tombname --get-mountpoint` 
+                    tombloc=`"$TOMBPATH" list "$tombname" --get-mountpoint` 
                     bindhooks=`zenity \
                         --text-info \
                         --filename="$tombloc/bind-hooks" \
                         --editable`
                     if [[ $? == "0" ]]; then
                         echo "$bindhooks" > "$tombloc/bind-hooks"
+                        _info "gtomb" "bind-hooks saved"
                     fi
                     exec _main
                     ;;
                 posts)
-                    tombloc=`$TOMBPATH list $tombname --get-mountpoint`
+                    tombloc=`"$TOMBPATH" list "$tombname" --get-mountpoint`
                     posthooks=`zenity \
                         --text-info \
                         --filename="$tombloc/post-hooks" \
@@ -651,11 +648,10 @@ function _list {
                     if [[ $? == "0" ]]; then
                         echo "$posthooks" > "$tombloc/post-hooks"
                         chmod +x "$tombloc/post-hooks"
+                        _info "gtomb" "post-hooks saved"
                     fi
                     exec _main
                     ;;
-  
-                # See what else to add
             esac
             ;;
         1)
@@ -668,7 +664,7 @@ function _list {
 # {{{ close - Close open tomb(s)
 function _close {
     tombtmp="/tmp/tombtmp"
-    $TOMBPATH list --get-mountpoint > $tombtmp
+    "$TOMBPATH" list --get-mountpoint > $tombtmp
     echo "/all" >> $tombtmp
     tombname=`cat $tombtmp | \
         sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
@@ -683,15 +679,10 @@ function _close {
         res=$?
         case $res in
             0)
-                sudoassword=$(ask_password "Insert sudo password for user $USER")
-                echo -e "$sudoassword\n" | sudo -S -v
-                _sudowrong
-
-                tombname=`echo $tombname | cut -c1-16`
-                $TOMBPATH close $tombname
-
-                _clean # Clean sensitive stuff from memory
-                _zeninfo "Success" "Tomb(s) closed successfully!"
+                _sudo
+                tombname=`echo "$tombname" | cut -c1-16`
+                "$TOMBPATH" close "$tombname"
+                _info "Success" "Closed successfully!"
                 exec _main
                 ;;
             1)
@@ -704,7 +695,7 @@ function _close {
 # {{{ slam - Slam open tombs
 function _slam {
     tombtmp="/tmp/tombtmp"
-    $TOMBPATH list --get-mountpoint > $tombtmp
+    "$TOMBPATH" list --get-mountpoint > $tombtmp
     echo "/all" >> $tombtmp
     tombname=`cat $tombtmp | \
         sed 's/.*\/\([^\/]*\)$/\1\n &/' | \
@@ -719,15 +710,10 @@ function _slam {
     res=$?
     case $res in
         0)
-            sudoassword=$(ask_password "Insert sudo password for user $USER")
-            echo -e "$sudoassword\n" | sudo -S -v
-            _sudowrong
-
-            tombname=`echo $tombname | cut -c1-16`
-            $TOMBPATH slam $tombname
-
-            _clean # Clean sensitive stuff from memory
-            _zeninfo "Success" "Tomb(s) slammed successfully!"
+            _sudo
+            tombname=`echo "$tombname" | cut -c1-16`
+            "$TOMBPATH" slam "$tombname"
+            _info "Success" "Slammed successfully!"
             exec _main
             ;;
         1)
@@ -740,29 +726,42 @@ function _slam {
 # {{{ resize - Resize an existing *closed* tomb
 function _resize {
     tombname=`_fsel "Choose a tomb to resize"`
-
     res=$?
+    _zenques "Is your tomb closed?"
+    case $? in
+        1)
+            _zenwarn "gtomb" "Please close the tomb before resizing."
+            exec _main
+            ;;
+    esac
     case $res in
         0)
             tombsize=`_zenentry "New tomb size" "Enter the new size of your tomb in MiB. Must be higher than the current size." "100"`
+
+            if [[ tombsize == "" ]]; then
+                _zenotif "gtomb" "Cancelled"
+            fi
+
+            re='^[0-9]+$'
+            if ! [[ $tombsize =~ $re ]]; then
+                _zenerr "Error" "Please choose a valid number."
+                exec _main
+            elif [[ $tombsize == "" ]]; then
+                _info "gtomb" "Cancelled"
+                exec _main
+            fi
 
             res=$?
             case $res in
                 0)
                     keyfile=`_fsel "Choose according keyfile"`
-
                     res=$?
                     case $res in
                         0)
-                            sudoassword=$(ask_password "Insert sudo password for user $USER")
-                            echo -e "$sudoassword\n" | sudo -S -v
-                            _sudowrong
-
-                            $TOMBPATH resize $tombname -s $tombsize -k $keyfile | \
+                            _sudo
+                            "$TOMBPATH" resize "$tombname" -s "$tombsize" -k "$keyfile" | \
                                 _zenprognc "Resizing tomb." "Please wait while your tomb is being resized..."
-
-                            _clean # Clean sensitive stuff from memory
-                            _zeninfo "Success" "Tomb resized successfully!"
+                            _info "Success" "Tomb resized successfully!"
                             exec _main
                             ;;
                         1)
@@ -785,15 +784,12 @@ function _resize {
 # {{{ passwd - Change existing key's passphrase
 function _passwd {
     keyfile=`_fsel "Choose a keyfile"`
-
     res=$?
     case $res in
         0)
-            $TOMBPATH passwd -k $keyfile | \
+            "$TOMBPATH" passwd -k "$keyfile" | \
                 _zenprognc "Changing passphrase" "Please wait while your key's passphrase is being changed..."
-            
-            _clean
-            _zeninfo "Success" "Passphrase changed successfully!"
+            _info "Success" "$keyfile passphrase changed successfully!"
             exec _main
             ;;
         1)
@@ -806,29 +802,21 @@ function _passwd {
 # {{{ setkey - Change a tomb's keyfile
 function _setkey {
     tombname=`_fsel "Choose a tomb to change its keyfile"`
-
     res=$?
     case $res in
         0)
             keyfile=`_fsel "Chosse your tomb's old keyfile"`
-
             res=$?
             case $res in
                 0)
                     newkey=`_fsel "Choose your tomb's new keyfile"`
-
                     res=$?
                     case $res in
                         0)
-                            sudoassword=$(ask_password "Insert sudo password for $USER")
-                            echo -e "$sudoassword\n" | sudo -S -v
-                            _sudowrong
-
-                            $TOMBPATH setkey -k $newkey $keyfile $tombname | \
+                            _sudo
+                            "$TOMBPATH" setkey -k "$newkey" "$keyfile" "$tombname" | \
                                 _zenprognc "Changing key" "Please wait while your tomb's key is being changed..."
-
-                            _clean
-                            _zeninfo "Success" "Tomb's keyfile successfully changed!"
+                            _info "Success" "$tombname keyfile successfully changed! Now using $newkey"
                             exec _main
                             ;;
                         1)
@@ -852,19 +840,16 @@ function _setkey {
 function _engrave {
     which qrencode || _zenwarn "Warning" "qrencode is not installed. Install it and try again" && exec _main
     keyfile=`_fsel "Choose a keyfile to engrave"`
-
     res=$?
     case $res in
         0)
             jpegfile=`_fsave "Choose where to save your keyfile (PNG format)"`
-            
             res=$?
             case $res in
                 0)
                     awk '/^-----/ {next}; /^Version/ {next}; {print $0}' $keyfile \
                         | qrencode --size 4 --level H --casesensitive -o $jpegfile
-                    
-                    _zeninfo "Success" "QR code generated in $jpegfile"
+                    _info "Success" "QR code generated in $jpegfile"
                     exec _main
                     ;;
                 1)
@@ -883,19 +868,15 @@ function _engrave {
 function _bury {
     which steghide || _zenwarn "Warning" "steghide is not installed. Install it and try again" && exec _main
     keyfile=`_fsel "Choose keyfile"`
-
     res=$?
     case $res in
         0)
             jpegfile=`_fsel "Choose JPEG file"`
-
             res=$?
             case $res in
                 0)
-                    $TOMBPATH bury -k $keyfile $jpegfile
-
-                    _zeninfo "Success" "Your key is now hidden in $jpegfile"
-                    _clean # Clean sensitive stuff from memory
+                    "$TOMBPATH" bury -k "$keyfile" "$jpegfile"
+                    _info "Success" "Your key is now hidden in $jpegfile"
                     exec _main
                     ;;
                 1)
@@ -914,19 +895,15 @@ function _bury {
 function _exhume {
     which steghide || _zenwarn "Warning" "steghide is not installed. Install it and try again" && exec _main
     jpegfile=`_fsel "Choose JPEG file"`
-
     res=$?
     case $res in
         0)
             keyfile=`_fsave "Choose where to extract your key"`
-
             res=$?
             case $res in
                 0)
-                    $TOMBPATH exhume -k $keyfile $jpegfile
-
-                    _zeninfo "Success" "Your keyfile is extracted to $keyfile"
-                    _clean # Clean sensitive stuff from memory
+                    "$TOMBPATH" exhume -k "$keyfile" "$jpegfile"
+                    _info "Success" "Your keyfile is extracted to $keyfile"
                     exec _main
                     ;;
                 1)
@@ -944,10 +921,8 @@ function _exhume {
 # {{{ index - index the contents of open tombs
 function _index {
     which mlocate || _zenwarn "Warning" "mlocate is not installed. Install it and try again" && exec _main
-
-    $TOMBPATH index | _zenprognc "Indexing" "Please wait while the open tombs are being indexed..."
-    _zeninfo "Success" "Tombs indexed!"
-    
+    "$TOMBPATH" index | _zenprognc "Indexing" "Please wait while the open tombs are being indexed..."
+    _info "Success" "Tombs indexed!"
     exec _main
 }
 # }}}
@@ -955,7 +930,6 @@ function _index {
 # {{{ search - searches the contents of indexed tombs
 function _search {
     strings=""
-
     function _searchstring {
         srchstring=`_zenentry "Search" "Enter an argument to search. Cancel to finish."`
         res=$?
@@ -963,21 +937,23 @@ function _search {
         
         if [[ $res == "1" ]]; then
             tombtmp="/tmp/tombtmp"
-            $TOMBPATH search $strings > $tombtmp
+            "$TOMBPATH" search "$strings" > $tombtmp
                 zenity \
                     --text-info \
-                    --width=640 --height=640 \
+                    --width=800 --height=640 \
                     --title="Search results" \
                     --filename=$tombtmp
+            _info "Success" "Search complete!"
         else
             _searchstring
         fi
     }
     _searchstring
-    
     exec _main
 }
 # }}}
+
+function _ { _clean } # I like cleaning :)
 
 if [ ! -f $TOMBPATH ]; then
     _zenwarn "Warning" "Tomb binary is nonexistent in the current path. Install it or edit the script to point to the correct path."
