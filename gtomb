@@ -37,6 +37,7 @@ GETITER="$KDFPATH/tomb-kdb-pbkdf2-getiter"
 PBKDF="$KDFPATH/tomb-kdb-pbkdf2"
 _DD=dcfldd
 which dcfldd > /dev/null || _DD=dd
+echo $_DD
 
 # {{{ monmort icon
 MONMORT="/tmp/monmort.png"
@@ -402,10 +403,10 @@ function _dig {
                     "$TOMBPATH" dig -s "$tombsize" "$tombname" | \
                         _zenprog "Digging new tomb" "Please wait while your tomb is being dug..." &
 
-                    PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
+                    PID_ZEN=$(ps -C zenity h -o pid,command | awk '/Digging new tomb/{print $1}')
                     while [ -n "$PID_ZEN" ]; do
                         PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
-                        PID_DD=$(ps -C $_DD h -o pid,command | grep "$tombname" | awk '{print $1}')
+                        PID_DD=$(ps -C $_DD h -o pid,command | awk -v tombtmp="$tombname" '$0~tombtmp{print $1}')
                         sleep 1
                     done
                     if [[ -n "$PID_DD" && -z "$PID_ZEN" ]]; then
@@ -474,10 +475,10 @@ this key is used:" "2"`
                 _zenprog "Forging key" "Please wait while your key is being forged...\n\
 You can move your mouse around and use your computer to speed up the process." &
 
-            PID_ZEN=$(ps -C zenity h -o pid,command | grep "Forging key" | awk '{print $1}')
+            PID_ZEN=$(ps -C zenity h -o pid,command | awk '/Forging key/{print $1}')
             while [ -n "$PID_ZEN" ]; do
                 PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
-                PID_DD=$(ps -C $_DD h -o pid,command | grep " if=" | awk '{print $1}')
+                PID_DD=$(ps -C $_DD h -o pid,command | awk '/ if/{print $1}')
                 sleep 1
             done
             if [[ -n "$PID_DD"  && -z "$PID_ZEN" ]]; then
