@@ -2,7 +2,7 @@
 #
 # gtomb - a GUI wrapper for Tomb 
 #
-# Maintained and written by parazyd <parazyd AT dyne DOT org>
+# Maintained and written by parazyd <parazyd@dyne.org>
 # https://github.com/parazyd/gtomb
 # https://github.com/dyne/Tomb
 #
@@ -10,7 +10,7 @@
 #
 # {{{ License
 # gtomb - A GUI wrapper for Tomb, the crypto undertaker
-# Copyright (C) 2015-2016 Parazyd <parazyd AT dyne DOT org>
+# Copyright (C) 2015-2016 Parazyd <parazyd@dyne.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -378,7 +378,7 @@ function _dig {
     if [[ -f "$tombname" ]]; then
         _zenerr "Error" "This tomb already exists. I am not digging here."
         exec _main
-    elif [[ "$tombname" == "" ]]; then
+    elif [[ -z "$tombname" ]]; then
         _info "gtomb" "Cancelled"
         exec _main
     fi
@@ -392,7 +392,7 @@ function _dig {
             if ! [[ $tombsize =~ $re ]]; then
                 _zenerr "Error" "Please choose a valid number."
                 exec _main
-            elif [[ $tombsize == "" ]]; then
+            elif [[ -z $tombsize ]]; then
                 _info "gtomb" "Cancelled"
                 exec _main
             fi
@@ -403,12 +403,12 @@ function _dig {
                         _zenprog "Digging new tomb" "Please wait while your tomb is being dug..." &
 
                     PID_ZEN=$(ps -C zenity h -o pid,command | grep "Digging new tomb" | awk '{print $1}')
-                    while [ "$PID_ZEN" != "" ]; do
+                    while [ -n "$PID_ZEN" ]; do
                         PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
                         PID_DD=$(ps -C $_DD h -o pid,command | grep "$tombname" | awk '{print $1}')
                         sleep 1
                     done
-                    if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
+                    if [[ -n "$PID_DD" && -z "$PID_ZEN" ]]; then
                         kill -9 $PID_DD
                         _zenwarn "Warning" "Tomb digging cancelled."
                         rm -f "$tombname"
@@ -442,14 +442,14 @@ function _forge {
     if [[ -f $keyfile ]]; then
         _zenerr "Error" "This key already exists. I am not overwriting."
         exec _main
-    elif [[ $keyfile == "" ]]; then
+    elif [[ -z $keyfile ]]; then
         _info "gtomb" "Cancelled"
         exec _main
     fi
 
     kdf=""
     kdfiter=""
-    if [[ -f $HEXENC ]] && [[ -f $GENSALT ]] && [[ -f $GETITER ]] && [[ -f $PBKDF ]]; then
+    if [[ -x $HEXENC ]] && [[ -x $GENSALT ]] && [[ -x $GETITER ]] && [[ -x $PBKDF ]]; then
         _zenques "Do you want to use KDF? (Generates passwords armored against dictionary attacks)" 
         if [[ $? == "0" ]]; then
             kdf="--kdf"
@@ -459,7 +459,7 @@ this key is used:" "2"`
             if ! [[ $kdfiter =~ $re ]]; then
                 _zenerr "Error" "Please choose a valid number."
                 exec _main
-            elif [[ $kdfiter == "" ]]; then
+            elif [[ -z $kdfiter ]]; then
                 _info "gtomb" "Cancelled"
                 exec _main
             fi
@@ -475,12 +475,12 @@ this key is used:" "2"`
 You can move your mouse around and use your computer to speed up the process." &
 
             PID_ZEN=$(ps -C zenity h -o pid,command | grep "Forging key" | awk '{print $1}')
-            while [ "$PID_ZEN" != "" ]; do
+            while [ -n "$PID_ZEN" ]; do
                 PID_ZEN=$(ps h -o pid -p ${PID_ZEN})
                 PID_DD=$(ps -C $_DD h -o pid,command | grep " if=" | awk '{print $1}')
                 sleep 1
             done
-            if [[ "$PID_DD" != "" && "$PID_ZEN" == "" ]]; then
+            if [[ -n "$PID_DD"  && -z "$PID_ZEN" ]]; then
                 kill -9 $PID_DD
                 _zenwarn "Warning" "Forging cancelled."
                 rm -f $keyfile
@@ -502,7 +502,7 @@ function _lock {
     tombname=`_fsel "Select a tomb to lock"`
     res=$?
     
-    if [[ $tombname == "" ]]; then
+    if [[ -z $tombname ]]; then
         _zenotif "gtomb" "Cancelled"
         exec _main
     fi
@@ -512,7 +512,7 @@ function _lock {
             keyfile=`_fsel "Choose the key for your tomb"`
             res=$?
 
-            if [[ $keyfile == "" ]]; then
+            if [[ -z $keyfile ]]; then
                 _zenotif "gtomb" "Cancelled"
                 exec _main
             fi
@@ -738,7 +738,7 @@ function _resize {
         0)
             tombsize=`_zenentry "New tomb size" "Enter the new size of your tomb in MiB. Must be higher than the current size." "100"`
 
-            if [[ tombsize == "" ]]; then
+            if [[ -z tombsize ]]; then
                 _zenotif "gtomb" "Cancelled"
             fi
 
@@ -746,7 +746,7 @@ function _resize {
             if ! [[ $tombsize =~ $re ]]; then
                 _zenerr "Error" "Please choose a valid number."
                 exec _main
-            elif [[ $tombsize == "" ]]; then
+            elif [[ -z $tombsize ]]; then
                 _info "gtomb" "Cancelled"
                 exec _main
             fi
@@ -838,7 +838,7 @@ function _setkey {
 
 # {{{ engrave - generate QR code of a key
 function _engrave {
-    which qrencode || _zenwarn "Warning" "qrencode is not installed. Install it and try again" && exec _main
+    which qrencode || _zenwarn "Warning" "qrencode is not installed. Install it and try again"
     keyfile=`_fsel "Choose a keyfile to engrave"`
     res=$?
     case $res in
@@ -866,7 +866,7 @@ function _engrave {
 
 # {{{ bury - hide a keyfile in a JPEG image
 function _bury {
-    which steghide || _zenwarn "Warning" "steghide is not installed. Install it and try again" && exec _main
+    which steghide || _zenwarn "Warning" "steghide is not installed. Install it and try again"
     keyfile=`_fsel "Choose keyfile"`
     res=$?
     case $res in
@@ -893,7 +893,7 @@ function _bury {
 
 # {{{ exhume - extract keyfile from JPEG
 function _exhume {
-    which steghide || _zenwarn "Warning" "steghide is not installed. Install it and try again" && exec _main
+    which steghide || _zenwarn "Warning" "steghide is not installed. Install it and try again"
     jpegfile=`_fsel "Choose JPEG file"`
     res=$?
     case $res in
@@ -920,7 +920,7 @@ function _exhume {
 
 # {{{ index - index the contents of open tombs
 function _index {
-    which mlocate || _zenwarn "Warning" "mlocate is not installed. Install it and try again" && exec _main
+    which locate || _zenwarn "Warning" "mlocate is not installed. Install it and try again" 
     "$TOMBPATH" index | _zenprognc "Indexing" "Please wait while the open tombs are being indexed..."
     _info "Success" "Tombs indexed!"
     exec _main
@@ -937,13 +937,13 @@ function _search {
         
         if [[ $res == "1" ]]; then
             tombtmp="/tmp/tombtmp"
+            _info "Success" "Search complete!"
             "$TOMBPATH" search "$strings" > $tombtmp
                 zenity \
                     --text-info \
                     --width=800 --height=640 \
                     --title="Search results" \
                     --filename=$tombtmp
-            _info "Success" "Search complete!"
         else
             _searchstring
         fi
@@ -955,8 +955,8 @@ function _search {
 
 function _ { _clean } # I like cleaning :)
 
-if [ ! -f $TOMBPATH ]; then
-    _zenwarn "Warning" "Tomb binary is nonexistent in the current path. Install it or edit the script to point to the correct path."
+if [ ! -x $TOMBPATH ]; then
+    _zenwarn "Warning" "Tomb binary is not executable or doesn't exist in the current path. Install it or edit the script to point to the correct path."
 else
     _main
 fi
