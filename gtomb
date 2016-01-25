@@ -37,7 +37,6 @@ GETITER="$KDFPATH/tomb-kdb-pbkdf2-getiter"
 PBKDF="$KDFPATH/tomb-kdb-pbkdf2"
 _DD=dcfldd
 which dcfldd > /dev/null || _DD=dd
-echo $_DD
 
 # {{{ monmort icon
 MONMORT="/tmp/monmort.png"
