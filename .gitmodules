@@ -1,0 +1,3 @@
+[submodule "tomb"]
+	path = tomb
+	url = https://github.com/dyne/tomb

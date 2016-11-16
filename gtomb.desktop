@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=gtomb
+Comment=Tomb's Graphical Interface
+Exec=gtomb
+Icon=gtomb
+Terminal=false
+Type=Application
+Categories=Utility
