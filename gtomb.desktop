@@ -2,7 +2,7 @@
 Name=gtomb
 Comment=Tomb's Graphical Interface
 Exec=gtomb
-Icon=gtomb
+Icon=/usr/share/pixmaps/gtomb.png
 Terminal=false
 Type=Application
 Categories=Utility
